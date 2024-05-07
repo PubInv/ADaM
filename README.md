@@ -1,0 +1,2 @@
+# ADaM
+Alarm Dialog Management
