@@ -1,2 +1,2 @@
-# ADaM
-Alarm Dialog Management
+# ADaM - Alarm Dialog Management
+
