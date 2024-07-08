@@ -38,6 +38,11 @@ A person with the initiative to code a system in Python or preferably Javascript
 
 We need a scholar to do some hours of research with Google Scholar to find out how much, if any, of this idea has been addressed already.
 
+One starting point may be:
+
+[https://github.com/PubInv/ADaM](https://github.com/PubInv/ADaM)
+
+
 The search term "Intelligent Alarm System" does not appear to be exactly what we mean:
 
 ["The intelligent alarm management system", Jun Liu, Khiang Wee Lim, Weing Khuen Ho, Kay Chen Tan, Rajagopalan Srinivasan, Arthur Tay. IEEE Software, 2003.](https://www.researchgate.net/profile/Rajagopalan-Srinivasan-3/publication/3247961_The_intelligent_alarm_management_system/links/5860c85008ae329d61fcb03a/The-intelligent-alarm-management-system.pdf)
