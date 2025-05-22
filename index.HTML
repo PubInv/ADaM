@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Action Selector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    #container {
+      display: flex;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    #main {
+      flex: 3;
+      padding: 20px;
+    }
+    #sidebar {
+      flex: 1;
+      border-left: 1px solid #ccc;
+      padding: 20px;
+    }
+    .condition {
+      margin-bottom: 20px;
+    }
+    .action-btn {
+      display: block;
+      margin: 10px 0;
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+    }
+    .selected {
+      background-color: #d0f0d0;
+    }
+    #timer {
+      font-size: 1.5em;
+      margin-bottom: 20px;
+    }
+    #goBtn {
+      font-size: 1.5em;
+      padding: 10px 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="startScreen" style="text-align:center; padding: 100px;">
+  <button id="goBtn">GO</button>
+</div>
+
+<div id="container" style="display:none;">
+  <div id="main">
+    <div id="timer">Time: 0s</div>
+    <div id="conditions"></div>
+  </div>
+  <div id="sidebar">
+    <h3>Actions</h3>
+    <button class="action-btn" data-action="Option 1">Option 1</button>
+    <button class="action-btn" data-action="Option 2">Option 2</button>
+    <button class="action-btn" data-action="Option 3">Option 3</button>
+  </div>
+</div>
+
+<script>
+  const goBtn = document.getElementById("goBtn");
+  const startScreen = document.getElementById("startScreen");
+  const container = document.getElementById("container");
+  const conditionsDiv = document.getElementById("conditions");
+  const timerDisplay = document.getElementById("timer");
+
+  let conditions = [
+    "Condition 1: Choose the best option.",
+    "Condition 2: Select a matching action.",
+    "Condition 3: Final decision required."
+  ];
+
+  let currentCondition = 0;
+  let selections = [];
+  let startTime;
+  let interval;
+
+  function updateTimer() {
+    const seconds = Math.floor((Date.now() - startTime) / 1000);
+    timerDisplay.textContent = `Time: ${seconds}s`;
+  }
+
+  function showConditions() {
+    conditionsDiv.innerHTML = "";
+    conditions.forEach((text, index) => {
+      const div = document.createElement("div");
+      div.className = "condition";
+      div.id = `condition-${index}`;
+      div.innerHTML = `<strong>${text}</strong><br><span id="selected-${index}">Selected: None</span>`;
+      conditionsDiv.appendChild(div);
+    });
+  }
+
+  function handleActionClick(action) {
+    if (currentCondition >= conditions.length) return;
+
+    selections[currentCondition] = action;
+    document.getElementById(`selected-${currentCondition}`).textContent = `Selected: ${action}`;
+
+    currentCondition++;
+
+    if (currentCondition >= conditions.length) {
+      clearInterval(interval);
+      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
+      setTimeout(() => {
+        alert(`You completed all conditions in ${timeTaken} seconds.`);
+      }, 100);
+    }
+  }
+
+  goBtn.addEventListener("click", () => {
+    startScreen.style.display = "none";
+    container.style.display = "flex";
+    currentCondition = 0;
+    selections = [];
+    showConditions();
+    startTime = Date.now();
+    interval = setInterval(updateTimer, 1000);
+  });
+
+  document.querySelectorAll(".action-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      handleActionClick(button.getAttribute("data-action"));
+    });
+  });
+</script>
+
+</body>
+</html>
