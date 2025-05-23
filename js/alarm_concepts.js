@@ -1,3 +1,21 @@
+// TODO:
+// Tie resolution of specific condtions to buttons randomly.
+// Create more buttons than conditions.
+// Randomly create start times and present condtion as time
+// elapses.
+// Add severity to condtions. (scale 1-5) (5 is most severe).
+// 1 Information
+// 2 Warn
+// 3 Problem
+// 4 Critical
+// 5 Panic
+// Score should reflect severity ( s**2);
+// Add to score penalty for pressing wrong button.
+// Show score of Trial at the end.
+
+// LATER:
+// Create different annunciation strategies.
+
 
 function test_alarm_concepts() {
     alert("hello world!");
