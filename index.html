@@ -65,7 +65,7 @@
     <button class="action-btn" data-action="Option 3">Option 3</button>
   </div>
 </div>
-<script src="~/js/alarm_concepts.js"></script>
+<script src="./js/alarm_concepts.js"></script>
 <script>
   const goBtn = document.getElementById("goBtn");
   const startScreen = document.getElementById("startScreen");
@@ -83,6 +83,7 @@
   let selections = [];
   let startTime;
   let interval;
+  let trial;
 
   function updateTimer() {
     const seconds = Math.floor((Date.now() - startTime) / 1000);
@@ -100,7 +101,8 @@
     });
   }
 
-  function handleActionClick(action) {
+function handleActionClick(action) {
+
     if (currentCondition >= conditions.length) return;
 
     selections[currentCondition] = action;
@@ -109,6 +111,7 @@
     currentCondition++;
 
     if (currentCondition >= conditions.length) {
+        console.log("Trial Score: ",trial.score());
       clearInterval(interval);
       const timeTaken = Math.floor((Date.now() - startTime) / 1000);
       setTimeout(() => {
@@ -124,7 +127,10 @@
     selections = [];
     showConditions();
     startTime = Date.now();
-    interval = setInterval(updateTimer, 1000);
+      interval = setInterval(updateTimer, 1000);
+
+     trial = new Trial("onlyOne",3);
+     console.log(trial);
   });
 
   document.querySelectorAll(".action-btn").forEach(button => {
