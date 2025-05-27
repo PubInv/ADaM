@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Action Selector</title>
+  <title>Alarm Condition Game</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -23,27 +23,41 @@
       flex: 1;
       border-left: 1px solid #ccc;
       padding: 20px;
+      overflow-y: auto;
     }
     .condition {
       margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      background: #f9f9f9;
+    }
+    .condition.active {
+      background-color: #d0ebff;
     }
     .action-btn {
       display: block;
-      margin: 10px 0;
+      margin: 8px 0;
       padding: 10px;
       width: 100%;
       cursor: pointer;
+      background-color: #f2f2f2;
+      border: 1px solid #999;
+      border-radius: 5px;
     }
-    .selected {
-      background-color: #d0f0d0;
+    .action-btn:hover {
+      background-color: #e0ffe0;
     }
     #timer {
       font-size: 1.5em;
       margin-bottom: 20px;
+      font-weight: bold;
+      color: #0077cc;
     }
     #goBtn {
       font-size: 1.5em;
       padding: 10px 20px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -55,90 +69,149 @@
 
 <div id="container" style="display:none;">
   <div id="main">
-    <div id="timer">Time: 0s</div>
+    <div id="timer">⏱️ 00:00:00</div>
     <div id="conditions"></div>
   </div>
   <div id="sidebar">
     <h3>Actions</h3>
-    <button class="action-btn" data-action="Option 1">Option 1</button>
-    <button class="action-btn" data-action="Option 2">Option 2</button>
-    <button class="action-btn" data-action="Option 3">Option 3</button>
   </div>
 </div>
+
 <script src="./js/alarm_concepts.js"></script>
 <script>
+  let trial, startTime, interval;
+  let correctActions = [];
+  let score = 0;
+  let activeConditionIndex = -1;
+  let displayCounter = 1;
+
+
   const goBtn = document.getElementById("goBtn");
   const startScreen = document.getElementById("startScreen");
   const container = document.getElementById("container");
   const conditionsDiv = document.getElementById("conditions");
   const timerDisplay = document.getElementById("timer");
+  const sidebar = document.getElementById("sidebar");
 
-  let conditions = [
-    "Condition 1: Choose the best option.",
-    "Condition 2: Select a matching action.",
-    "Condition 3: Final decision required."
-  ];
-
-  let currentCondition = 0;
-  let selections = [];
-  let startTime;
-  let interval;
-  let trial;
-
-  function updateTimer() {
-    const seconds = Math.floor((Date.now() - startTime) / 1000);
-    timerDisplay.textContent = `Time: ${seconds}s`;
+  function formatTime(ms) {
+    const totalSec = Math.floor(ms / 1000);
+    const hours = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+    const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+    const seconds = String(totalSec % 60).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   }
 
-// create a version:
-// functionshowConditions(trial);
-  function showConditions() {
-    conditionsDiv.innerHTML = "";
-    conditions.forEach((text, index) => {
-      const div = document.createElement("div");
-      div.className = "condition";
-      div.id = `condition-${index}`;
-      div.innerHTML = `<strong>${text}</strong><br><span id="selected-${index}">Selected: None</span>`;
-      conditionsDiv.appendChild(div);
-    });
-  }
+function updateTimer() {
+  const now = Date.now();
+  timerDisplay.innerHTML = `⏱️ ${formatTime(now - startTime)}`;
 
-function handleActionClick(action) {
+  const seconds = Math.floor((now - startTime) / 1000);
+  const toShow = trial.getConditionsToShow(seconds);
 
-    if (currentCondition >= conditions.length) return;
+  toShow.forEach((condition, index) => {
+    showCondition(condition, trial.conditions.indexOf(condition));
+    condition.shown = true;
+    condition.startShownTime = Date.now();
+  });
 
-    selections[currentCondition] = action;
-    document.getElementById(`selected-${currentCondition}`).textContent = `Selected: ${action}`;
+  highlightCurrent();
+}
 
-    currentCondition++;
 
-    if (currentCondition >= conditions.length) {
-        console.log("Trial Score: ",trial.score());
-      clearInterval(interval);
-      const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-      setTimeout(() => {
-        alert(`You completed all conditions in ${timeTaken} seconds.`);
-      }, 100);
+function showCondition(condition, index) {
+  condition.displayNumber = displayCounter++;
+
+  const div = document.createElement("div");
+  div.className = "condition";
+  div.id = `condition-${index}`;
+  div.innerHTML = `
+    <strong>Condition ${condition.displayNumber}</strong><br>
+    <em>Severity: ${condition.severity}</em><br>
+    <span id="selected-${index}">Selected: None</span>
+  `;
+  conditionsDiv.appendChild(div);
+}
+
+
+
+function highlightCurrent() {
+  const all = document.querySelectorAll(".condition");
+  all.forEach(div => div.classList.remove("active"));
+
+  for (const div of all) {
+    const id = div.id; // e.g., condition-2
+    const index = parseInt(id.split("-")[1]);
+    const condition = trial.conditions[index];
+
+    if (condition.shown && !condition.resolved) {
+      div.classList.add("active");
+      activeConditionIndex = index;
+      return;
     }
+  }
+
+  activeConditionIndex = -1; // all resolved
+}
+
+
+
+  function handleActionClick(action) {
+    if (activeConditionIndex === -1) return;
+
+    const condition = trial.conditions[activeConditionIndex];
+    const correctAction = correctActions[activeConditionIndex];
+
+    if (action !== correctAction) {
+      alert("❌ Wrong action! -1 points");
+      score -= 1;
+      return;
+    }
+
+    condition.resolve();
+    const resolutionTime = condition.getResolutionTimeInSeconds();
+    const gain = (condition.severity ** 3) / resolutionTime;
+    score += gain;
+
+    document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
+    highlightCurrent();
+
+    if (trial.allResolved()) {
+      clearInterval(interval);
+      setTimeout(() => {
+        alert(`🎯 Trial Complete!\nFinal Score: ${score.toFixed(2)}`);
+      }, 300);
+    }
+  }
+
+  function generateActionButtons(conditionCount) {
+    sidebar.innerHTML = "<h3>Actions</h3>";
+    for (let i = 1; i <= 20; i++) {
+      const button = document.createElement("button");
+      button.className = "action-btn";
+      button.dataset.action = `Action ${i}`;
+      button.textContent = `Action ${i}`;
+      button.addEventListener("click", () => {
+        handleActionClick(button.dataset.action);
+      });
+      sidebar.appendChild(button);
+    }
+
+    const allActions = Array.from({ length: 20 }, (_, i) => `Action ${i + 1}`);
+    correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
+    console.log("Correct actions:", correctActions);
   }
 
   goBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
     container.style.display = "flex";
-    currentCondition = 0;
-    selections = [];
-    showConditions();
+
+    trial = new Trial("SimpleDisplay", 6); // 6 conditions
+    console.log("Conditions:", trial.conditions);
+
+    generateActionButtons(trial.conditions.length);
+    score = 0;
     startTime = Date.now();
-      interval = setInterval(updateTimer, 1000);
-
-     trial = new Trial("onlyOne",3);
-     console.log(trial);
-  });
-
-  document.querySelectorAll(".action-btn").forEach(button => {
-    button.addEventListener("click", () => {
-      handleActionClick(button.getAttribute("data-action"));
-    });
+    interval = setInterval(updateTimer, 1000);
   });
 </script>
 
