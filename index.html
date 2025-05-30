@@ -170,17 +170,22 @@ function highlightCurrent() {
 
     condition.resolve();
     const resolutionTime = condition.getResolutionTimeInSeconds();
-    const gain = (condition.severity ** 3) / resolutionTime;
+      const gain = (condition.severity ** 3) / resolutionTime;
     score += gain;
 
     document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
     highlightCurrent();
 
     if (trial.allResolved()) {
-      clearInterval(interval);
+        clearInterval(interval);
+
+        // Now print the trial summary....
+
       setTimeout(() => {
         alert(`🎯 Trial Complete!\nFinal Score: ${score.toFixed(2)}`);
       }, 300);
+
+
     }
   }
 
@@ -197,7 +202,7 @@ function highlightCurrent() {
     sidebar.appendChild(button);
   }
 
-  
+
   const allActions = Array.from({ length: 12 }, (_, i) => `Action ${i + 1}`);
   correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
   console.log("Correct actions:", correctActions);

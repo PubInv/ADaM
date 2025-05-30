@@ -39,7 +39,23 @@ class Trial {
     return this.conditions.filter(c => c.start_time <= currentTime && !c.shown);
   }
 
+    score() {
+        s = 0;
+        for (let i = 0; i < number_conditions; i++) {
+            c = this.conditions[i];
+            time = c.endResolveTime - c.start_time ;
+            ss += (c.severity ** 3) / time;
+        }
+        return s;
+    }
+
   allResolved() {
     return this.conditions.every(c => c.resolved);
   }
+    // Implement toString()
+    toString() {
+        let resolutions = "";
+
+        return resolutions + score();
+    }
 }
