@@ -127,6 +127,7 @@ function showCondition(condition, index) {
   div.innerHTML = `
     <strong>Condition ${condition.displayNumber}</strong><br>
     <em>Severity: ${condition.severity}</em><br>
+    <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
     <span id="selected-${index}">Selected: None</span>
   `;
   conditionsDiv.appendChild(div);
@@ -183,23 +184,24 @@ function highlightCurrent() {
     }
   }
 
-  function generateActionButtons(conditionCount) {
-    sidebar.innerHTML = "<h3>Actions</h3>";
-    for (let i = 1; i <= 20; i++) {
-      const button = document.createElement("button");
-      button.className = "action-btn";
-      button.dataset.action = `Action ${i}`;
-      button.textContent = `Action ${i}`;
-      button.addEventListener("click", () => {
-        handleActionClick(button.dataset.action);
-      });
-      sidebar.appendChild(button);
-    }
-
-    const allActions = Array.from({ length: 20 }, (_, i) => `Action ${i + 1}`);
-    correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
-    console.log("Correct actions:", correctActions);
+ function generateActionButtons(conditionCount) {
+  sidebar.innerHTML = "<h3>Actions</h3>";
+  for (let i = 1; i <= 12; i++) {
+    const button = document.createElement("button");
+    button.className = "action-btn";
+    button.dataset.action = `Action ${i}`;
+    button.textContent = `Action ${i}`;
+    button.addEventListener("click", () => {
+      handleActionClick(button.dataset.action);
+    });
+    sidebar.appendChild(button);
   }
+
+  
+  const allActions = Array.from({ length: 12 }, (_, i) => `Action ${i + 1}`);
+  correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
+  console.log("Correct actions:", correctActions);
+}
 
   goBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
