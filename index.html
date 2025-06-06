@@ -59,6 +59,18 @@
       padding: 10px 20px;
       cursor: pointer;
     }
+    #finalScore {
+      font-size: 1.3em;
+      color: green;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    #playAgainBtn {
+      display: none;
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-size: 1em;
+    }
   </style>
 </head>
 <body>
@@ -77,6 +89,8 @@
 <div id="container" style="display:none;">
   <div id="main">
     <div id="timer">⏱️ 00:00:00</div>
+    <div id="finalScore"></div>
+    <button id="playAgainBtn">🔁 Play Again</button>
     <div id="conditions"></div>
   </div>
   <div id="sidebar">
@@ -94,10 +108,12 @@
   let hideResolved = false;
 
   const goBtn = document.getElementById("goBtn");
+  const playAgainBtn = document.getElementById("playAgainBtn");
   const startScreen = document.getElementById("startScreen");
   const container = document.getElementById("container");
   const conditionsDiv = document.getElementById("conditions");
   const timerDisplay = document.getElementById("timer");
+  const finalScoreDiv = document.getElementById("finalScore");
   const sidebar = document.getElementById("sidebar");
 
   function formatTime(ms) {
@@ -188,9 +204,8 @@
 
     if (trial.allResolved()) {
       clearInterval(interval);
-      setTimeout(() => {
-        alert(`🎯 Trial Complete!\nFinal Score: ${score.toFixed(2)}`);
-      }, 300);
+      finalScoreDiv.textContent = `🎯 Trial Complete! Final Score: ${score.toFixed(2)}`;
+      playAgainBtn.style.display = "inline-block";
     }
   }
 
@@ -219,6 +234,8 @@
     displayCounter = 1;
     correctActions = [];
     conditionsDiv.innerHTML = "";
+    finalScoreDiv.textContent = "";
+    playAgainBtn.style.display = "none";
     sidebar.innerHTML = "";
 
     if (mode === "severity" || mode === "severityHide") {
@@ -240,9 +257,14 @@
   goBtn.addEventListener("click", () => {
     startScreen.style.display = "none";
     container.style.display = "flex";
-
     const selectedMode = document.getElementById("modeSelector").value;
     startTrial(selectedMode);
+  });
+
+  playAgainBtn.addEventListener("click", () => {
+    container.style.display = "none";
+    startScreen.style.display = "block";
+    playAgainBtn.style.display = "none";
   });
 </script>
 
