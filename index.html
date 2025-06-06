@@ -98,6 +98,11 @@
   </div>
 </div>
 
+<audio id="lowSound" src="./assets/low.mp3" preload="auto"></audio>
+<audio id="mediumSound" src="./assets/medium1.mp3" preload="auto"></audio>
+<audio id="highSound" src="./assets/hhh.mp3" preload="auto"></audio>
+
+
 <script src="./js/alarm_concepts.js"></script>
 <script>
   let trial, startTime, interval;
@@ -141,19 +146,31 @@
   }
 
   function showCondition(condition, index) {
-    condition.displayNumber = displayCounter++;
+  condition.displayNumber = displayCounter++;
 
-    const div = document.createElement("div");
-    div.className = "condition";
-    div.id = `condition-${index}`;
-    div.innerHTML = `
-      <strong>Condition ${condition.displayNumber}</strong><br>
-      <em>Severity: ${condition.severity}</em><br>
-      <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
-      <span id="selected-${index}">Selected: None</span>
-    `;
-    conditionsDiv.appendChild(div);
+  // Play sound based on severity
+if(!condition.resolved){
+  if (condition.severity <= 2) {
+    document.getElementById("lowSound").play();
+  } else if (condition.severity === 3) {
+    document.getElementById("mediumSound").play();
+  } else {
+    document.getElementById("highSound").play();
   }
+}
+
+  const div = document.createElement("div");
+  div.className = "condition";
+  div.id = `condition-${index}`;
+  div.innerHTML = `
+    <strong>Condition ${condition.displayNumber}</strong><br>
+    <em>Severity: ${condition.severity}</em><br>
+    <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
+    <span id="selected-${index}">Selected: None</span>
+  `;
+  conditionsDiv.appendChild(div);
+}
+
 
   function highlightCurrent() {
     const all = document.querySelectorAll(".condition");
