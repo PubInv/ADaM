@@ -39,23 +39,24 @@ class Trial {
     return this.conditions.filter(c => c.start_time <= currentTime && !c.shown);
   }
 
-    score() {
-        s = 0;
-        for (let i = 0; i < number_conditions; i++) {
-            c = this.conditions[i];
-            time = c.endResolveTime - c.start_time ;
-            ss += (c.severity ** 3) / time;
-        }
-        return s;
+  calculateScore() {
+    let totalScore = 0;
+    for (const c of this.conditions) {
+      if (c.resolved && c.startShownTime && c.endResolvedTime) {
+        const time = (c.endResolvedTime - c.startShownTime) / 1000;
+        totalScore += (c.severity ** 3) / time;
+      }
     }
+    return totalScore;
+  }
 
   allResolved() {
     return this.conditions.every(c => c.resolved);
   }
-    // Implement toString()
-    toString() {
-        let resolutions = "";
 
-        return resolutions + score();
-    }
+  toString() {
+    return this.conditions.map((c, i) => 
+      `Condition ${i + 1} | Severity: ${c.severity} | Resolved: ${c.resolved} | Time: ${c.getResolutionTimeInSeconds().toFixed(2)}s`
+    ).join('\\n') + `\\nTotal Score: ${this.calculateScore().toFixed(2)}`;
+  }
 }
