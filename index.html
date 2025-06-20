@@ -71,6 +71,12 @@
       padding: 10px 20px;
       font-size: 1em;
     }
+    #completeBtn {
+      display: none;
+      margin-top: 10px;
+      font-weight: bold;
+      background-color: #cce5ff;
+    }
   </style>
 </head>
 <body>
@@ -95,13 +101,13 @@
   </div>
   <div id="sidebar">
     <h3>Actions</h3>
+    <button id="completeBtn" class="action-btn">✅ Complete</button>
   </div>
 </div>
 
 <audio id="lowSound" src="./assets/low.mp3" preload="auto"></audio>
 <audio id="mediumSound" src="./assets/medium1.mp3" preload="auto"></audio>
 <audio id="highSound" src="./assets/hhh.mp3" preload="auto"></audio>
-
 
 <script src="./js/alarm_concepts.js"></script>
 <script>
@@ -111,6 +117,7 @@
   let activeConditionIndex = -1;
   let displayCounter = 1;
   let hideResolved = false;
+  let pendingCompletion = false;
 
   const goBtn = document.getElementById("goBtn");
   const playAgainBtn = document.getElementById("playAgainBtn");
@@ -120,6 +127,7 @@
   const timerDisplay = document.getElementById("timer");
   const finalScoreDiv = document.getElementById("finalScore");
   const sidebar = document.getElementById("sidebar");
+  const completeBtn = document.getElementById("completeBtn");
 
   function formatTime(ms) {
     const totalSec = Math.floor(ms / 1000);
@@ -146,31 +154,29 @@
   }
 
   function showCondition(condition, index) {
-  condition.displayNumber = displayCounter++;
+    condition.displayNumber = displayCounter++;
 
-  // Play sound based on severity
-if(!condition.resolved){
-  if (condition.severity <= 2) {
-    document.getElementById("lowSound").play();
-  } else if (condition.severity === 3) {
-    document.getElementById("mediumSound").play();
-  } else {
-    document.getElementById("highSound").play();
+    if (!condition.resolved) {
+      if (condition.severity <= 2) {
+        document.getElementById("lowSound").play();
+      } else if (condition.severity === 3) {
+        document.getElementById("mediumSound").play();
+      } else {
+        document.getElementById("highSound").play();
+      }
+    }
+
+    const div = document.createElement("div");
+    div.className = "condition";
+    div.id = `condition-${index}`;
+    div.innerHTML = `
+      <strong>Condition ${condition.displayNumber}</strong><br>
+      <em>Severity: ${condition.severity}</em><br>
+      <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
+      <span id="selected-${index}">Selected: None</span>
+    `;
+    conditionsDiv.appendChild(div);
   }
-}
-
-  const div = document.createElement("div");
-  div.className = "condition";
-  div.id = `condition-${index}`;
-  div.innerHTML = `
-    <strong>Condition ${condition.displayNumber}</strong><br>
-    <em>Severity: ${condition.severity}</em><br>
-    <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
-    <span id="selected-${index}">Selected: None</span>
-  `;
-  conditionsDiv.appendChild(div);
-}
-
 
   function highlightCurrent() {
     const all = document.querySelectorAll(".condition");
@@ -192,16 +198,27 @@ if(!condition.resolved){
   }
 
   function handleActionClick(action) {
-    if (activeConditionIndex === -1) return;
+    if (activeConditionIndex === -1 || pendingCompletion) return;
 
     const condition = trial.conditions[activeConditionIndex];
     const correctAction = correctActions[activeConditionIndex];
 
     if (action !== correctAction) {
-      alert("❌ Wrong action! -1 points");
-      score -= 1;
+      alert("❌ Wrong action! -2 points");
+      score -= 2;
       return;
     }
+
+    // Right action selected, wait for "Complete"
+    pendingCompletion = true;
+    completeBtn.style.display = "block";
+    document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
+  }
+
+  completeBtn.addEventListener("click", () => {
+    if (activeConditionIndex === -1) return;
+
+    const condition = trial.conditions[activeConditionIndex];
 
     condition.resolve();
     const resolutionTime = condition.getResolutionTimeInSeconds();
@@ -210,13 +227,11 @@ if(!condition.resolved){
 
     if (hideResolved) {
       const resolvedDiv = document.getElementById(`condition-${activeConditionIndex}`);
-      if (resolvedDiv) {
-        resolvedDiv.remove();
-      }
-    } else {
-      document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
+      if (resolvedDiv) resolvedDiv.remove();
     }
 
+    pendingCompletion = false;
+    completeBtn.style.display = "none";
     highlightCurrent();
 
     if (trial.allResolved()) {
@@ -224,10 +239,12 @@ if(!condition.resolved){
       finalScoreDiv.textContent = `🎯 Trial Complete! Final Score: ${score.toFixed(2)}`;
       playAgainBtn.style.display = "inline-block";
     }
-  }
+  });
 
   function generateActionButtons(conditionCount) {
     sidebar.innerHTML = "<h3>Actions</h3>";
+    sidebar.appendChild(completeBtn);
+
     for (let i = 1; i <= 12; i++) {
       const button = document.createElement("button");
       button.className = "action-btn";
@@ -253,7 +270,10 @@ if(!condition.resolved){
     conditionsDiv.innerHTML = "";
     finalScoreDiv.textContent = "";
     playAgainBtn.style.display = "none";
-    sidebar.innerHTML = "";
+    sidebar.innerHTML = "<h3>Actions</h3>";
+    sidebar.appendChild(completeBtn);
+    completeBtn.style.display = "none";
+    pendingCompletion = false;
 
     if (mode === "severity" || mode === "severityHide") {
       trial.conditions.sort((a, b) => b.severity - a.severity);
