@@ -57,6 +57,6 @@ class Trial {
   toString() {
     return this.conditions.map((c, i) => 
       `Condition ${i + 1} | Severity: ${c.severity} | Resolved: ${c.resolved} | Time: ${c.getResolutionTimeInSeconds().toFixed(2)}s`
-    ).join('\\n') + `\\nTotal Score: ${this.calculateScore().toFixed(2)}`;
+    ).join('\\n') + `\\nTotal Score: ${this.calculateScore(Date.now()).toFixed(2)}`;
   }
 }
