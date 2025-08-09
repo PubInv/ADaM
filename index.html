@@ -4,88 +4,54 @@
   <meta charset="UTF-8">
   <title>Alarm Condition Game</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    #container {
-      display: flex;
-      height: 100vh;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    #main {
-      flex: 3;
-      padding: 20px;
-    }
-    #sidebar {
-      flex: 1;
-      border-left: 1px solid #ccc;
-      padding: 20px;
-      overflow-y: auto;
-    }
-    .condition {
-      margin-bottom: 20px;
-      padding: 10px;
-      border: 1px solid #aaa;
-      border-radius: 6px;
-      background: #f9f9f9;
-    }
-    .condition.active {
-      background-color: #d0ebff;
-    }
-    .action-btn {
-      display: block;
-      margin: 8px 0;
-      padding: 10px;
-      width: 100%;
-      cursor: pointer;
-      background-color: #f2f2f2;
-      border: 1px solid #999;
-      border-radius: 5px;
-    }
-    .action-btn:hover {
-      background-color: #e0ffe0;
-    }
-    #timer {
-      font-size: 1.5em;
-      margin-bottom: 10px;
-      font-weight: bold;
-      color: #0077cc;
-    }
-    #fatigueMeter {
-      font-size: 1.2em;
-      margin-bottom: 20px;
-      color: #cc0000;
-    }
-    #goBtn {
-      font-size: 1.5em;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-    #finalScore {
-      font-size: 1.3em;
-      color: green;
-      font-weight: bold;
-      margin-top: 10px;
-    }
-    #playAgainBtn {
-      display: none;
-      margin-top: 20px;
-      padding: 10px 20px;
-      font-size: 1em;
-    }
-    #completeBtn {
-      display: none;
-      margin-top: 10px;
-      font-weight: bold;
-      background-color: #cce5ff;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+   #container {
+  display: flex;
+  /* height: 100vh;  <-- remove this line */
+  padding: 20px;
+  box-sizing: border-box;
+  align-items: flex-start;      /* optional, keeps columns aligned at top */
+}
+
+    #main { flex: 3; padding: 20px; }
+    #sidebar { flex: 1; border-left: 1px solid #ccc; padding: 20px; overflow-y: auto; }
+    .condition { margin-bottom: 20px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; }
+    .condition.active { background-color: #d0ebff; }
+    .action-btn { display: block; margin: 8px 0; padding: 10px; width: 100%; cursor: pointer; background-color: #f2f2f2; border: 1px solid #999; border-radius: 5px; }
+    .action-btn:hover { background-color: #e0ffe0; }
+    #timer { font-size: 1.5em; margin-bottom: 10px; font-weight: bold; color: #0077cc; }
+    #fatigueMeter { font-size: 1.2em; margin-bottom: 20px; color: #cc0000; }
+    #goBtn { font-size: 1.5em; padding: 10px 20px; cursor: pointer; }
+    #finalScore { font-size: 1.3em; color: green; font-weight: bold; margin-top: 10px; }
+    #playAgainBtn { display: none; margin-top: 20px; padding: 10px 20px; font-size: 1em; }
+    #completeBtn { display: none; margin-top: 10px; font-weight: bold; background-color: #cce5ff; }
+
+    /* Monte Carlo panel */
+   #mcPanel {
+  padding: 20px;
+  border-top: 1px solid #e5e5e5;
+  margin: 24px 20px;            /* add spacing so it sits clearly below */
+  position: relative;           /* creates its own stacking context */
+}
+
+    .mc-grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; }
+    .mc-card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; background: #fafafa; }
+    .mc-title { font-weight: bold; margin-bottom: 8px; }
+    .mc-actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { padding: 8px 12px; border: 1px solid #999; border-radius: 8px; background: #f5f5f5; cursor: pointer; }
+    .btn:hover { background: #e8f3ff; }
+    .mc-summaries { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+    .summary { border: 1px solid #ddd; border-radius: 10px; padding: 12px; background: #fff; }
+    .summary h4 { margin: 0 0 8px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #eee; padding: 6px 8px; text-align: left; font-size: 0.95em; }
+    th { background: #f7f7f7; }
+    @media(max-width: 900px) { .mc-grid { grid-template-columns: repeat(2, 1fr); } .mc-summaries { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 
+<!-- Start screen -->
 <div id="startScreen" style="text-align:center; padding: 100px;">
   <select id="modeSelector">
     <option value="simple">Simple Display</option>
@@ -97,6 +63,7 @@
   <button id="goBtn">GO</button>
 </div>
 
+<!-- Game container -->
 <div id="container" style="display:none;">
   <div id="main">
     <div id="timer">⏱️ 00:00:00</div>
@@ -111,29 +78,77 @@
   </div>
 </div>
 
+<!-- Monte Carlo Simulation Panel -->
+<div id="mcPanel">
+  <h3>Monte Carlo Simulation (User A vs User B)</h3>
+  <div class="mc-grid">
+    <!-- Global/Trial params -->
+    <div class="mc-card">
+      <div class="mc-title">Simulation</div>
+      <label>N trials<br><input id="mcN" type="number" min="10" step="10" value="200"></label><br><br>
+      <label># Conditions<br><input id="mcConds" type="number" min="1" max="20" value="6"></label><br><br>
+      <label>Arrival Horizon (s)<br><input id="mcHorizon" type="number" min="0" max="60" value="10"></label><br><br>
+      <label>T (fatigue time const, s)<br><input id="mcT" type="number" min="30" max="1000" value="240"></label>
+    </div>
+
+    <!-- User A -->
+    <div class="mc-card">
+      <div class="mc-title">User A</div>
+      <label>Base Task (s)<br><input id="aBase" type="number" min="0.5" step="0.5" value="2"></label><br><br>
+      <label>Jitter (s)<br><input id="aJitter" type="number" min="0" step="0.5" value="3"></label><br><br>
+      <label>Policy<br>
+        <select id="aPolicy">
+          <option value="highestSeverity">Highest Severity</option>
+          <option value="earliestShown">Earliest Shown</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- User B -->
+    <div class="mc-card">
+      <div class="mc-title">User B</div>
+      <label>Base Task (s)<br><input id="bBase" type="number" min="0.5" step="0.5" value="3"></label><br><br>
+      <label>Jitter (s)<br><input id="bJitter" type="number" min="0" step="0.5" value="1"></label><br><br>
+      <label>Policy<br>
+        <select id="bPolicy">
+          <option value="earliestShown">Earliest Shown</option>
+          <option value="highestSeverity">Highest Severity</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Actions -->
+    <div class="mc-card">
+      <div class="mc-title">Actions</div>
+      <div class="mc-actions">
+        <button id="runMc" class="btn">▶ Run Simulation</button>
+        <button id="dlCsv" class="btn" disabled>⬇ Download CSV</button>
+      </div>
+      <div id="mcStatus" style="margin-top:8px;color:#0077cc;"></div>
+    </div>
+  </div>
+
+  <div class="mc-summaries">
+    <div class="summary" id="sumA">
+      <h4>User A Summary</h4>
+      <div id="sumATable"></div>
+    </div>
+    <div class="summary" id="sumB">
+      <h4>User B Summary</h4>
+      <div id="sumBTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Audio + logic -->
 <audio id="lowSound" src="./assets/low.mp3" preload="auto"></audio>
 <audio id="mediumSound" src="./assets/medium1.mp3" preload="auto"></audio>
 <audio id="highSound" src="./assets/hhh.mp3" preload="auto"></audio>
 
 <script src="./js/alarm_concepts.js"></script>
+
 <script>
-  let fatigue = 0;
-  const fatigueMeter = document.getElementById("fatigueMeter");
-  function calculateFatigue() {
-    fatigue = 0;
-    trial.conditions.forEach(condition => {
-      if (condition.shown && !condition.resolved) {
-        const activeDuration = (Date.now() - condition.startShownTime) / 1000;
-        fatigue += ((condition.severity ** 2) * activeDuration) / 60;
-      }
-    });
-    fatigueMeter.textContent = `Fatigue: ${fatigue.toFixed(2)}`;
-  }
-  function adjustPerformance(base) {
-    return base * (1 - fatigue);
-  }
-</script>
-<script>
+  // ---- Game state ----
   let trial, startTime, interval;
   let correctActions = [];
   let score = 0;
@@ -151,7 +166,35 @@
   const finalScoreDiv = document.getElementById("finalScore");
   const sidebar = document.getElementById("sidebar");
   const completeBtn = document.getElementById("completeBtn");
+  const fatigueMeter = document.getElementById("fatigueMeter");
 
+  // ---- Audio (continuous until all resolved) ----
+  const low = document.getElementById("lowSound");
+  const medium = document.getElementById("mediumSound");
+  const high = document.getElementById("highSound");
+
+  function stopAllAlarms() {
+    [low, medium, high].forEach(a => {
+      a.pause();
+      a.currentTime = 0;
+      a.loop = false;
+    });
+  }
+
+  function updateAlarmSound() {
+    if (!trial) return;
+    const active = trial.conditions.filter(c => c.shown && !c.resolved);
+    if (active.length === 0) {
+      stopAllAlarms();
+      return;
+    }
+    const maxSeverity = Math.max(...active.map(c => c.severity));
+    const target = (maxSeverity <= 2) ? low : (maxSeverity === 3 ? medium : high);
+    [low, medium, high].forEach(a => { if (a !== target) { a.pause(); a.currentTime = 0; a.loop = false; } });
+    if (target.paused) { target.loop = true; target.play().catch(() => {}); }
+  }
+
+  // ---- Utils ----
   function formatTime(ms) {
     const totalSec = Math.floor(ms / 1000);
     const hours = String(Math.floor(totalSec / 3600)).padStart(2, '0');
@@ -163,33 +206,23 @@
   function updateTimer() {
     const now = Date.now();
     timerDisplay.innerHTML = `⏱️ ${formatTime(now - startTime)}`;
-
     const seconds = Math.floor((now - startTime) / 1000);
     const toShow = trial.getConditionsToShow(seconds);
 
-    toShow.forEach((condition, index) => {
+    toShow.forEach((condition) => {
       showCondition(condition, trial.conditions.indexOf(condition));
       condition.shown = true;
       condition.startShownTime = Date.now();
     });
 
     highlightCurrent();
-    calculateFatigue();
+    trial.calculateFatigue(now, 1);
+    fatigueMeter.textContent = `Fatigue: ${trial.fatigue.toFixed(2)}`;
+    updateAlarmSound();
   }
 
   function showCondition(condition, index) {
     condition.displayNumber = displayCounter++;
-
-    if (!condition.resolved) {
-      if (condition.severity <= 2) {
-        document.getElementById("lowSound").play();
-      } else if (condition.severity === 3) {
-        document.getElementById("mediumSound").play();
-      } else {
-        document.getElementById("highSound").play();
-      }
-    }
-
     const div = document.createElement("div");
     div.className = "condition";
     div.id = `condition-${index}`;
@@ -205,25 +238,20 @@
   function highlightCurrent() {
     const all = document.querySelectorAll(".condition");
     all.forEach(div => div.classList.remove("active"));
-
     for (const div of all) {
-      const id = div.id;
-      const index = parseInt(id.split("-")[1]);
+      const index = parseInt(div.id.split("-")[1]);
       const condition = trial.conditions[index];
-
       if (condition.shown && !condition.resolved) {
         div.classList.add("active");
         activeConditionIndex = index;
         return;
       }
     }
-
     activeConditionIndex = -1;
   }
 
   function handleActionClick(action) {
     if (activeConditionIndex === -1 || pendingCompletion) return;
-
     const condition = trial.conditions[activeConditionIndex];
     const correctAction = correctActions[activeConditionIndex];
 
@@ -233,7 +261,6 @@
       return;
     }
 
-    // Right action selected, wait for "Complete"
     pendingCompletion = true;
     completeBtn.style.display = "block";
     document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
@@ -241,12 +268,12 @@
 
   completeBtn.addEventListener("click", () => {
     if (activeConditionIndex === -1) return;
-
     const condition = trial.conditions[activeConditionIndex];
-
     condition.resolve();
     const resolutionTime = condition.getResolutionTimeInSeconds();
-    const gain = (condition.severity ** 3) / resolutionTime;
+
+    const baseGain = (condition.severity ** 3) / Math.max(1e-6, resolutionTime);
+    const gain = trial.adjustPerformance(baseGain); // base * (1 - f)
     score += gain;
 
     if (hideResolved) {
@@ -257,10 +284,12 @@
     pendingCompletion = false;
     completeBtn.style.display = "none";
     highlightCurrent();
+    updateAlarmSound();
 
     if (trial.allResolved()) {
       clearInterval(interval);
-      finalScoreDiv.textContent = `🎯 Trial Complete! Final Score: ${score.toFixed(2)}`;
+      stopAllAlarms();
+      finalScoreDiv.textContent = `🎯 Trial Complete! Final Score: ${score.toFixed(2)} | Accuracy≈${(trial.accuracy()*100).toFixed(0)}% | Speed×${trial.speedFactor().toFixed(2)}`;
       playAgainBtn.style.display = "inline-block";
     }
   });
@@ -268,29 +297,28 @@
   function generateActionButtons(conditionCount) {
     sidebar.innerHTML = "<h3>Actions</h3>";
     sidebar.appendChild(completeBtn);
-
     for (let i = 1; i <= 10; i++) {
       const button = document.createElement("button");
       button.className = "action-btn";
       button.dataset.action = `Action ${i}`;
       button.textContent = `Action ${i}`;
-      button.addEventListener("click", () => {
-        handleActionClick(button.dataset.action);
-      });
+      button.addEventListener("click", () => handleActionClick(button.dataset.action));
       sidebar.appendChild(button);
     }
-
     const allActions = Array.from({ length: 10 }, (_, i) => `Action ${i + 1}`);
     correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
-    console.log("Correct actions:", correctActions);
   }
 
   function startTrial(mode) {
+    if (interval) clearInterval(interval);
+    stopAllAlarms();
+
     trial = new Trial(mode, 6);
     score = 0;
     startTime = Date.now();
     displayCounter = 1;
     correctActions = [];
+    trial.resetFatigue();
     conditionsDiv.innerHTML = "";
     finalScoreDiv.textContent = "";
     playAgainBtn.style.display = "none";
@@ -298,19 +326,23 @@
     sidebar.appendChild(completeBtn);
     completeBtn.style.display = "none";
     pendingCompletion = false;
+    fatigueMeter.textContent = `Fatigue: ${trial.fatigue.toFixed(2)}`;
+
+    generateActionButtons(trial.conditions.length);
 
     if (mode === "severity" || mode === "severityHide") {
       trial.conditions.sort((a, b) => b.severity - a.severity);
       hideResolved = (mode === "severityHide");
-      generateActionButtons(trial.conditions.length);
       trial.conditions.forEach((condition, index) => {
         showCondition(condition, index);
         condition.shown = true;
         condition.startShownTime = Date.now();
       });
+      highlightCurrent();
+      interval = setInterval(updateTimer, 1000);
+      updateAlarmSound();
     } else {
       hideResolved = (mode === "simpleHide");
-      generateActionButtons(trial.conditions.length);
       interval = setInterval(updateTimer, 1000);
     }
   }
@@ -326,6 +358,98 @@
     container.style.display = "none";
     startScreen.style.display = "block";
     playAgainBtn.style.display = "none";
+  });
+
+  /* ====== Monte Carlo UI ====== */
+  const mcEls = {
+    N: document.getElementById('mcN'),
+    conds: document.getElementById('mcConds'),
+    horizon: document.getElementById('mcHorizon'),
+    T: document.getElementById('mcT'),
+    aBase: document.getElementById('aBase'),
+    aJitter: document.getElementById('aJitter'),
+    aPolicy: document.getElementById('aPolicy'),
+    bBase: document.getElementById('bBase'),
+    bJitter: document.getElementById('bJitter'),
+    bPolicy: document.getElementById('bPolicy'),
+    run: document.getElementById('runMc'),
+    dl: document.getElementById('dlCsv'),
+    status: document.getElementById('mcStatus'),
+    sumATable: document.getElementById('sumATable'),
+    sumBTable: document.getElementById('sumBTable')
+  };
+
+  function renderSummary(el, summary, label) {
+    el.innerHTML = `
+      <table>
+        <tr><th>Trials</th><td>${summary.count}</td></tr>
+        <tr><th>Mean Time (s)</th><td>${summary.meanTime.toFixed(1)}</td></tr>
+        <tr><th>P50 Time (s)</th><td>${summary.p50Time.toFixed(1)}</td></tr>
+        <tr><th>P90 Time (s)</th><td>${summary.p90Time.toFixed(1)}</td></tr>
+        <tr><th>Mean Fatigue</th><td>${summary.meanFatigue.toFixed(3)}</td></tr>
+        <tr><th>P50 Fatigue</th><td>${summary.p50Fatigue.toFixed(3)}</td></tr>
+        <tr><th>P90 Fatigue</th><td>${summary.p90Fatigue.toFixed(3)}</td></tr>
+        <tr><th>Mean Accuracy</th><td>${(summary.meanAccuracy*100).toFixed(1)}%</td></tr>
+        <tr><th>P50 Accuracy</th><td>${(summary.p50Acc*100).toFixed(1)}%</td></tr>
+        <tr><th>P90 Accuracy</th><td>${(summary.p90Acc*100).toFixed(1)}%</td></tr>
+      </table>
+    `;
+  }
+
+  function toCSV(resultsA, resultsB) {
+    const rows = [
+      ["user","totalTimeSec","finalFatigue","avgAccuracy","avgSpeedFactor","resolved"]
+    ];
+    for (const r of resultsA) rows.push(["A", r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved]);
+    for (const r of resultsB) rows.push(["B", r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved]);
+    return rows.map(r => r.join(",")).join("\n");
+  }
+
+  mcEls.run.addEventListener('click', () => {
+    mcEls.status.textContent = "Running…";
+    mcEls.dl.disabled = true;
+
+    const N = parseInt(mcEls.N.value, 10);
+    const number_conditions = parseInt(mcEls.conds.value, 10);
+    const horizonArrivalSec = parseInt(mcEls.horizon.value, 10);
+    const Tconst = parseInt(mcEls.T.value, 10);
+
+    const userA = new UserProfile({
+      name: "A",
+      baseTaskTimeSec: parseFloat(mcEls.aBase.value),
+      taskTimeJitterSec: parseFloat(mcEls.aJitter.value),
+      policy: mcEls.aPolicy.value
+    });
+    const userB = new UserProfile({
+      name: "B",
+      baseTaskTimeSec: parseFloat(mcEls.bBase.value),
+      taskTimeJitterSec: parseFloat(mcEls.bJitter.value),
+      policy: mcEls.bPolicy.value
+    });
+
+    const out = runMonteCarlo({
+      N,
+      userA,
+      userB,
+      trialParams: { number_conditions, horizonArrivalSec, T_for_notes: Tconst }
+    });
+
+    renderSummary(mcEls.sumATable, out.userA.summary, "A");
+    renderSummary(mcEls.sumBTable, out.userB.summary, "B");
+    mcEls.status.textContent = "Done.";
+
+    // Prepare CSV
+    const csv = toCSV(out.userA.samples, out.userB.samples);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    mcEls.dl.disabled = false;
+    mcEls.dl.onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `monte_carlo_A_vs_B_${N}trials.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
   });
 </script>
 
