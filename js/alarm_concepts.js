@@ -85,7 +85,7 @@ class Trial {
     return this.fatigue;
   }
 
-  // Linear mappings per your notes:
+  // Linear mappings per notes:
   // A(0)=0.9, A(f)=0.9*(1-f); S(0)=1, S(f)=1*(1-f)
   accuracy() { return 0.9 * (1 - this.fatigue); }
   speedFactor() { return (1 - this.fatigue); }
@@ -112,7 +112,7 @@ class UserProfile {
   }
 }
 
-// Choose which active alarm to work on
+// Choose which active alarm to work on among SHOWN & UNRESOLVED
 function pickNextAlarm(trial, policy) {
   const active = trial.conditions.filter(c => c.shown && !c.resolved);
   if (active.length === 0) return null;
@@ -129,23 +129,51 @@ function pickNextAlarm(trial, policy) {
     .sort((a, b) => (a.startShownTime || Infinity) - (b.startShownTime || Infinity))[0];
 }
 
-// One simulated trial for a given user profile.
-function simulateTrialForUser(userProfile, {
+/* ========= NEW: presentation (alarm strategy) control =========
+   "showAll"       -> show all alarms immediately on arrival
+   "singleHighest" -> show at most one active at a time; pick highest-severity outstanding
+*/
+function presentAccordingToStrategy(trial, wallClockSec, presentationStrategy, t0ms) {
+  if (presentationStrategy === "showAll") {
+    for (const c of trial.conditions) {
+      if (!c.shown && c.start_time <= wallClockSec) {
+        c.shown = true;
+        c.startShownTime = t0ms + wallClockSec * 1000;
+      }
+    }
+    return;
+  }
+
+  // singleHighest: keep the current visible one until resolved
+  const shownActive = trial.conditions.filter(c => c.shown && !c.resolved);
+  if (shownActive.length > 0) return;
+
+  // pick the highest-severity among outstanding (arrived but not shown)
+  const outstanding = trial.conditions
+    .filter(c => !c.resolved && c.start_time <= wallClockSec && !c.shown)
+    .sort((a, b) => b.severity - a.severity || a.start_time - b.start_time);
+
+  if (outstanding.length > 0) {
+    const pick = outstanding[0];
+    pick.shown = true;
+    pick.startShownTime = t0ms + wallClockSec * 1000;
+  }
+}
+
+// --------- ORIGINAL people-vs-people MC (kept for compatibility, not used by new UI) ---------
+function simulateTrialForUser_original(userProfile, {
   name = "mc",
   number_conditions = 6,
   horizonArrivalSec = 10,   // conditions arrive in [0..10] seconds
   T_for_notes = T_SECONDS   // keep consistent with fatigue model
 } = {}) {
-  // Build a Trial with random severities/start times
   const trial = new Trial(name, number_conditions);
-
-  // Overwrite start_time uniformly in [0..horizonArrivalSec] for control
   for (const c of trial.conditions) {
     c.start_time = Math.floor(Math.random() * (horizonArrivalSec + 1));
   }
 
-  const t0 = Date.now();   // base ms
-  let wallClockSec = 0;    // simulated seconds since trial start
+  const t0 = Date.now();
+  let wallClockSec = 0;
   let actionsTaken = 0;
 
   let accuracyAccum = 0;
@@ -162,20 +190,16 @@ function simulateTrialForUser(userProfile, {
 
     const target = pickNextAlarm(trial, userProfile.policy);
     if (target) {
-      // Decide task time for this action (base + uniform jitter)
       const jitter = Math.random() * userProfile.taskTimeJitterSec;
-      const nominalTask = userProfile.baseTaskTimeSec + jitter;   // seconds
-      // Speed factor at the moment work starts
+      const nominalTask = userProfile.baseTaskTimeSec + jitter;
       const speedFactor = trial.speedFactor(); // 1 - f
       const effectiveTaskTime = Math.max(0.5, nominalTask / Math.max(0.1, speedFactor));
 
-      // Integrate fatigue second-by-second during task
       const steps = Math.ceil(effectiveTaskTime);
       for (let i = 0; i < steps; i++) {
         trial.calculateFatigue(t0 + wallClockSec * 1000, 1);
         wallClockSec += 1;
 
-        // New arrivals during task
         for (const c of trial.conditions) {
           if (!c.shown && c.start_time <= wallClockSec) {
             c.shown = true;
@@ -184,21 +208,17 @@ function simulateTrialForUser(userProfile, {
         }
       }
 
-      // Resolve chosen alarm
       target.resolve();
       target.endResolvedTime = t0 + wallClockSec * 1000;
 
-      // Aggregate metrics for this action
       actionsTaken += 1;
-      accuracyAccum += trial.accuracy();       // A(f) = 0.9*(1-f)
-      speedFactorAccum += trial.speedFactor(); // S(f) = 1 - f
+      accuracyAccum += trial.accuracy();
+      speedFactorAccum += trial.speedFactor();
     } else {
-      // Idle—advance time (fatigue won't increase without active alarms)
       trial.calculateFatigue(t0 + wallClockSec * 1000, 1);
       wallClockSec += 1;
     }
 
-    // Safety cap
     if (wallClockSec > 3600) break; // 1 hour
   }
 
@@ -215,7 +235,7 @@ function simulateTrialForUser(userProfile, {
   };
 }
 
-// Run N trials for two users and aggregate
+// Run N trials for two users and aggregate (original)
 function runMonteCarlo({
   N = 500,
   userA = new UserProfile({ name: "A", baseTaskTimeSec: 2, taskTimeJitterSec: 3, policy: "highestSeverity" }),
@@ -226,8 +246,8 @@ function runMonteCarlo({
   const resultsB = [];
 
   for (let i = 0; i < N; i++) {
-    resultsA.push(simulateTrialForUser(userA, trialParams));
-    resultsB.push(simulateTrialForUser(userB, trialParams));
+    resultsA.push(simulateTrialForUser_original(userA, trialParams));
+    resultsB.push(simulateTrialForUser_original(userB, trialParams));
   }
 
   function summarize(arr) {
@@ -253,11 +273,152 @@ function runMonteCarlo({
   };
 }
 
+/* ======== NEW: Strategy-vs-Strategy MC with Harm ========= */
+
+// One simulated trial for a given user profile and presentation strategy.
+function simulateTrialForUser(
+  userProfile,
+  {
+    name = "mc",
+    number_conditions = 6,
+    horizonArrivalSec = 10,   // conditions arrive in [0..horizonArrivalSec]
+    T_for_notes = T_SECONDS,
+    presentationStrategy = "showAll" // "singleHighest" | "showAll"
+  } = {}
+) {
+  // Build a Trial with random severities/start times
+  const trial = new Trial(name, number_conditions);
+
+  // Overwrite start_time uniformly in [0..horizonArrivalSec] for control
+  for (const c of trial.conditions) {
+    c.start_time = Math.floor(Math.random() * (horizonArrivalSec + 1));
+  }
+
+  const t0 = Date.now();   // base ms
+  let wallClockSec = 0;    // simulated seconds since trial start
+  let actionsTaken = 0;
+
+  let accuracyAccum = 0;
+  let speedFactorAccum = 0;
+
+  // NEW: harm accumulation (sum over conditions: duration * severity^2)
+  let totalHarm = 0;
+
+  while (!trial.allResolved()) {
+    // Ensure "shown" set according to strategy
+    presentAccordingToStrategy(trial, wallClockSec, presentationStrategy, t0);
+
+    // Choose target among SHOWN & UNRESOLVED
+    const target = pickNextAlarm(trial, userProfile.policy);
+    if (target) {
+      // Decide task time (base + uniform jitter)
+      const jitter = Math.random() * userProfile.taskTimeJitterSec;
+      const nominalTask = userProfile.baseTaskTimeSec + jitter;   // seconds
+      // Speed factor at the moment work starts
+      const speedFactor = trial.speedFactor(); // 1 - f
+      const effectiveTaskTime = Math.max(0.5, nominalTask / Math.max(0.1, speedFactor));
+
+      // Integrate fatigue second-by-second during task
+      const steps = Math.ceil(effectiveTaskTime);
+      for (let i = 0; i < steps; i++) {
+        trial.calculateFatigue(t0 + wallClockSec * 1000, 1);
+        wallClockSec += 1;
+
+        // New arrivals while working; update presentation
+        presentAccordingToStrategy(trial, wallClockSec, presentationStrategy, t0);
+      }
+
+      // Resolve chosen alarm
+      target.resolve();
+      target.endResolvedTime = t0 + wallClockSec * 1000;
+
+      // Aggregate metrics for this action
+      actionsTaken += 1;
+      accuracyAccum += trial.accuracy();       // A(f) = 0.9*(1-f)
+      speedFactorAccum += trial.speedFactor(); // S(f) = 1 - f
+
+      // NEW: add this condition's harm = (resolve_time - start_time) * severity^2
+      const durationSec = Math.max(0, wallClockSec - target.start_time);
+      totalHarm += durationSec * (target.severity ** 2);
+
+    } else {
+      // Idle—advance time (fatigue won't increase without active alarms)
+      trial.calculateFatigue(t0 + wallClockSec * 1000, 1);
+      wallClockSec += 1;
+      presentAccordingToStrategy(trial, wallClockSec, presentationStrategy, t0);
+    }
+
+    // Safety cap
+    if (wallClockSec > 3600) break; // 1 hour
+  }
+
+  const avgAccuracy = actionsTaken ? (accuracyAccum / actionsTaken) : 0.9;
+  const avgSpeedFactor = actionsTaken ? (speedFactorAccum / actionsTaken) : 1.0;
+
+  return {
+    user: userProfile.name,
+    totalTimeSec: wallClockSec,
+    finalFatigue: trial.fatigue,
+    avgAccuracy,
+    avgSpeedFactor,
+    resolved: actionsTaken,
+    totalHarm // NEW
+  };
+}
+
+// Run N trials for two presentation strategies and aggregate
+function runMonteCarloStrategies({
+  N = 500,
+  // one "human" profile; compare strategies, not people
+  operator = new UserProfile({ name: "op", baseTaskTimeSec: 2.5, taskTimeJitterSec: 2, policy: "highestSeverity" }),
+  trialParams = { number_conditions: 6, horizonArrivalSec: 10, T_for_notes: T_SECONDS },
+  strategies = ["singleHighest", "showAll"]
+} = {}) {
+  const out = {};
+  for (const strat of strategies) {
+    const samples = [];
+    for (let i = 0; i < N; i++) {
+      samples.push(
+        simulateTrialForUser(operator, { ...trialParams, presentationStrategy: strat })
+      );
+    }
+
+    function summarize(arr) {
+      const mean = (k) => arr.reduce((s, r) => s + r[k], 0) / arr.length;
+      const sorted = (k) => arr.map(r => r[k]).sort((a,b)=>a-b);
+      const pct = (vals, q) => vals[Math.floor(q*(vals.length-1))];
+
+      const t = sorted("totalTimeSec");
+      const f = sorted("finalFatigue");
+      const a = sorted("avgAccuracy");
+      const h = sorted("totalHarm"); // NEW
+
+      return {
+        count: arr.length,
+        meanTime: mean("totalTimeSec"),
+        p50Time: pct(t, 0.5), p90Time: pct(t, 0.9),
+        meanFatigue: mean("finalFatigue"),
+        p50Fatigue: pct(f, 0.5), p90Fatigue: pct(f, 0.9),
+        meanAccuracy: mean("avgAccuracy"),
+        p50Acc: pct(a, 0.5), p90Acc: pct(a, 0.9),
+        // NEW: harm
+        meanHarm: mean("totalHarm"),
+        p50Harm: pct(h, 0.5), p90Harm: pct(h, 0.9),
+        samples: arr
+      };
+    }
+
+    out[strat] = { summary: summarize(samples), samples };
+  }
+  return out;
+}
+
 // Expose to window for UI scripts
 if (typeof window !== 'undefined') {
   window.UserProfile = UserProfile;
-  window.runMonteCarlo = runMonteCarlo;
-  window.simulateTrialForUser = simulateTrialForUser;
+  window.runMonteCarlo = runMonteCarlo; // legacy (people vs people)
+  window.simulateTrialForUser = simulateTrialForUser; // new (with strategies & harm)
+  window.runMonteCarloStrategies = runMonteCarloStrategies; // new
   window.Trial = Trial;
   window.Condition = Condition;
 }

@@ -5,13 +5,13 @@
   <title>Alarm Condition Game</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-   #container {
-  display: flex;
-  /* height: 100vh;  <-- remove this line */
-  padding: 20px;
-  box-sizing: border-box;
-  align-items: flex-start;      /* optional, keeps columns aligned at top */
-}
+    #container {
+      display: flex;
+      /* height: 100vh;  <-- removed previously */
+      padding: 20px;
+      box-sizing: border-box;
+      align-items: flex-start;
+    }
 
     #main { flex: 3; padding: 20px; }
     #sidebar { flex: 1; border-left: 1px solid #ccc; padding: 20px; overflow-y: auto; }
@@ -27,12 +27,12 @@
     #completeBtn { display: none; margin-top: 10px; font-weight: bold; background-color: #cce5ff; }
 
     /* Monte Carlo panel */
-   #mcPanel {
-  padding: 20px;
-  border-top: 1px solid #e5e5e5;
-  margin: 24px 20px;            /* add spacing so it sits clearly below */
-  position: relative;           /* creates its own stacking context */
-}
+    #mcPanel {
+      padding: 20px;
+      border-top: 1px solid #e5e5e5;
+      margin: 24px 20px;
+      position: relative;
+    }
 
     .mc-grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; }
     .mc-card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; background: #fafafa; }
@@ -78,49 +78,54 @@
   </div>
 </div>
 
-<!-- Monte Carlo Simulation Panel -->
+<!-- Monte Carlo Simulation Panel (Strategies vs Strategies) -->
 <div id="mcPanel">
-  <h3>Monte Carlo Simulation (User A vs User B)</h3>
+  <h3>Monte Carlo: Alarm Presentation Strategies</h3>
   <div class="mc-grid">
-    <!-- Global/Trial params -->
+    <!-- Simulation params -->
     <div class="mc-card">
       <div class="mc-title">Simulation</div>
       <label>N trials<br><input id="mcN" type="number" min="10" step="10" value="200"></label><br><br>
       <label># Conditions<br><input id="mcConds" type="number" min="1" max="20" value="6"></label><br><br>
       <label>Arrival Horizon (s)<br><input id="mcHorizon" type="number" min="0" max="60" value="10"></label><br><br>
-      <label>T (fatigue time const, s)<br><input id="mcT" type="number" min="30" max="1000" value="240"></label>
+      <label>T (fatigue const, s)<br><input id="mcT" type="number" min="30" max="1000" value="240"></label>
     </div>
 
-    <!-- User A -->
+    <!-- Human (single) -->
     <div class="mc-card">
-      <div class="mc-title">User A</div>
-      <label>Base Task (s)<br><input id="aBase" type="number" min="0.5" step="0.5" value="2"></label><br><br>
-      <label>Jitter (s)<br><input id="aJitter" type="number" min="0" step="0.5" value="3"></label><br><br>
+      <div class="mc-title">Human (Operator)</div>
+      <label>Base Task (s)<br><input id="hBase" type="number" min="0.5" step="0.5" value="2.5"></label><br><br>
+      <label>Jitter (s)<br><input id="hJitter" type="number" min="0" step="0.5" value="2"></label><br><br>
       <label>Policy<br>
-        <select id="aPolicy">
+        <select id="hPolicy">
           <option value="highestSeverity">Highest Severity</option>
           <option value="earliestShown">Earliest Shown</option>
         </select>
       </label>
     </div>
 
-    <!-- User B -->
+    <!-- Strategy 1 -->
     <div class="mc-card">
-      <div class="mc-title">User B</div>
-      <label>Base Task (s)<br><input id="bBase" type="number" min="0.5" step="0.5" value="3"></label><br><br>
-      <label>Jitter (s)<br><input id="bJitter" type="number" min="0" step="0.5" value="1"></label><br><br>
-      <label>Policy<br>
-        <select id="bPolicy">
-          <option value="earliestShown">Earliest Shown</option>
-          <option value="highestSeverity">Highest Severity</option>
+      <div class="mc-title">Strategy 1</div>
+      <label>Presentation<br>
+        <select id="s1">
+          <option value="singleHighest">Single-queued (don’t switch)</option>
+          <option value="showAll">All at once</option>
         </select>
       </label>
     </div>
 
-    <!-- Actions -->
+    <!-- Strategy 2 -->
     <div class="mc-card">
-      <div class="mc-title">Actions</div>
-      <div class="mc-actions">
+      <div class="mc-title">Strategy 2</div>
+      <label>Presentation<br>
+        <select id="s2">
+          <option value="showAll">All at once</option>
+          <option value="singleHighest">Single-queued (don’t switch)</option>
+        </select>
+      </label>
+
+      <div class="mc-actions" style="margin-top:12px;">
         <button id="runMc" class="btn">▶ Run Simulation</button>
         <button id="dlCsv" class="btn" disabled>⬇ Download CSV</button>
       </div>
@@ -130,11 +135,11 @@
 
   <div class="mc-summaries">
     <div class="summary" id="sumA">
-      <h4>User A Summary</h4>
+      <h4>Strategy 1 Summary</h4>
       <div id="sumATable"></div>
     </div>
     <div class="summary" id="sumB">
-      <h4>User B Summary</h4>
+      <h4>Strategy 2 Summary</h4>
       <div id="sumBTable"></div>
     </div>
   </div>
@@ -360,18 +365,17 @@
     playAgainBtn.style.display = "none";
   });
 
-  /* ====== Monte Carlo UI ====== */
+  /* ====== Monte Carlo UI (Strategies) ====== */
   const mcEls = {
     N: document.getElementById('mcN'),
     conds: document.getElementById('mcConds'),
     horizon: document.getElementById('mcHorizon'),
     T: document.getElementById('mcT'),
-    aBase: document.getElementById('aBase'),
-    aJitter: document.getElementById('aJitter'),
-    aPolicy: document.getElementById('aPolicy'),
-    bBase: document.getElementById('bBase'),
-    bJitter: document.getElementById('bJitter'),
-    bPolicy: document.getElementById('bPolicy'),
+    hBase: document.getElementById('hBase'),
+    hJitter: document.getElementById('hJitter'),
+    hPolicy: document.getElementById('hPolicy'),
+    s1: document.getElementById('s1'),
+    s2: document.getElementById('s2'),
     run: document.getElementById('runMc'),
     dl: document.getElementById('dlCsv'),
     status: document.getElementById('mcStatus'),
@@ -379,7 +383,7 @@
     sumBTable: document.getElementById('sumBTable')
   };
 
-  function renderSummary(el, summary, label) {
+  function renderSummary(el, summary) {
     el.innerHTML = `
       <table>
         <tr><th>Trials</th><td>${summary.count}</td></tr>
@@ -392,16 +396,18 @@
         <tr><th>Mean Accuracy</th><td>${(summary.meanAccuracy*100).toFixed(1)}%</td></tr>
         <tr><th>P50 Accuracy</th><td>${(summary.p50Acc*100).toFixed(1)}%</td></tr>
         <tr><th>P90 Accuracy</th><td>${(summary.p90Acc*100).toFixed(1)}%</td></tr>
+        <tr><th>Mean Harm</th><td>${summary.meanHarm.toFixed(1)}</td></tr>
+        <tr><th>P50 Harm</th><td>${summary.p50Harm.toFixed(1)}</td></tr>
+        <tr><th>P90 Harm</th><td>${summary.p90Harm.toFixed(1)}</td></tr>
       </table>
     `;
   }
 
-  function toCSV(resultsA, resultsB) {
-    const rows = [
-      ["user","totalTimeSec","finalFatigue","avgAccuracy","avgSpeedFactor","resolved"]
-    ];
-    for (const r of resultsA) rows.push(["A", r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved]);
-    for (const r of resultsB) rows.push(["B", r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved]);
+  function toCSV(label, samples) {
+    const rows = [["strategy","totalTimeSec","finalFatigue","avgAccuracy","avgSpeedFactor","resolved","totalHarm"]];
+    for (const r of samples) {
+      rows.push([label, r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved, r.totalHarm]);
+    }
     return rows.map(r => r.join(",")).join("\n");
   }
 
@@ -414,42 +420,39 @@
     const horizonArrivalSec = parseInt(mcEls.horizon.value, 10);
     const Tconst = parseInt(mcEls.T.value, 10);
 
-    const userA = new UserProfile({
-      name: "A",
-      baseTaskTimeSec: parseFloat(mcEls.aBase.value),
-      taskTimeJitterSec: parseFloat(mcEls.aJitter.value),
-      policy: mcEls.aPolicy.value
-    });
-    const userB = new UserProfile({
-      name: "B",
-      baseTaskTimeSec: parseFloat(mcEls.bBase.value),
-      taskTimeJitterSec: parseFloat(mcEls.bJitter.value),
-      policy: mcEls.bPolicy.value
+    const operator = new UserProfile({
+      name: "op",
+      baseTaskTimeSec: parseFloat(mcEls.hBase.value),
+      taskTimeJitterSec: parseFloat(mcEls.hJitter.value),
+      policy: mcEls.hPolicy.value
     });
 
-    const out = runMonteCarlo({
+    const out = runMonteCarloStrategies({
       N,
-      userA,
-      userB,
-      trialParams: { number_conditions, horizonArrivalSec, T_for_notes: Tconst }
+      operator,
+      trialParams: { number_conditions, horizonArrivalSec, T_for_notes: Tconst },
+      strategies: [mcEls.s1.value, mcEls.s2.value]
     });
 
-    renderSummary(mcEls.sumATable, out.userA.summary, "A");
-    renderSummary(mcEls.sumBTable, out.userB.summary, "B");
-    mcEls.status.textContent = "Done.";
+    const s1Summary = out[mcEls.s1.value].summary;
+    const s2Summary = out[mcEls.s2.value].summary;
 
-    // Prepare CSV
-    const csv = toCSV(out.userA.samples, out.userB.samples);
+    renderSummary(mcEls.sumATable, s1Summary);
+    renderSummary(mcEls.sumBTable, s2Summary);
+
+    const csv = toCSV("strategy1", s1Summary.samples) + "\n" + toCSV("strategy2", s2Summary.samples);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     mcEls.dl.disabled = false;
     mcEls.dl.onclick = () => {
       const a = document.createElement('a');
       a.href = url;
-      a.download = `monte_carlo_A_vs_B_${N}trials.csv`;
+      a.download = `monte_carlo_strategies_${N}trials.csv`;
       a.click();
       URL.revokeObjectURL(url);
     };
+
+    mcEls.status.textContent = "Done.";
   });
 </script>
 
