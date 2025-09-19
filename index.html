@@ -5,14 +5,7 @@
   <title>Alarm Condition Game</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-    #container {
-      display: flex;
-      /* height: 100vh;  <-- removed previously */
-      padding: 20px;
-      box-sizing: border-box;
-      align-items: flex-start;
-    }
-
+    #container { display: flex; padding: 20px; box-sizing: border-box; align-items: flex-start; }
     #main { flex: 3; padding: 20px; }
     #sidebar { flex: 1; border-left: 1px solid #ccc; padding: 20px; overflow-y: auto; }
     .condition { margin-bottom: 20px; padding: 10px; border: 1px solid #aaa; border-radius: 6px; background: #f9f9f9; }
@@ -24,16 +17,8 @@
     #goBtn { font-size: 1.5em; padding: 10px 20px; cursor: pointer; }
     #finalScore { font-size: 1.3em; color: green; font-weight: bold; margin-top: 10px; }
     #playAgainBtn { display: none; margin-top: 20px; padding: 10px 20px; font-size: 1em; }
-    #completeBtn { display: none; margin-top: 10px; font-weight: bold; background-color: #cce5ff; }
-
-    /* Monte Carlo panel */
-    #mcPanel {
-      padding: 20px;
-      border-top: 1px solid #e5e5e5;
-      margin: 24px 20px;
-      position: relative;
-    }
-
+    #completeBtn { display: none !important; } /* hidden, not used */
+    #mcPanel { padding: 20px; border-top: 1px solid #e5e5e5; margin: 24px 20px; position: relative; }
     .mc-grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; }
     .mc-card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; background: #fafafa; }
     .mc-title { font-weight: bold; margin-bottom: 8px; }
@@ -74,15 +59,15 @@
   </div>
   <div id="sidebar">
     <h3>Actions</h3>
+    <!-- Kept but hidden -->
     <button id="completeBtn" class="action-btn">✅ Complete</button>
   </div>
 </div>
 
-<!-- Monte Carlo Simulation Panel (Strategies vs Strategies) -->
+<!-- Monte Carlo Simulation Panel -->
 <div id="mcPanel">
-  <h3>Monte Carlo: Alarm Presentation Strategies</h3>
+  <h3>Monte Carlo: Alarm Presentation Policies</h3>
   <div class="mc-grid">
-    <!-- Simulation params -->
     <div class="mc-card">
       <div class="mc-title">Simulation</div>
       <label>N trials<br><input id="mcN" type="number" min="10" step="10" value="200"></label><br><br>
@@ -90,282 +75,106 @@
       <label>Arrival Horizon (s)<br><input id="mcHorizon" type="number" min="0" max="60" value="10"></label><br><br>
       <label>T (fatigue const, s)<br><input id="mcT" type="number" min="30" max="1000" value="240"></label>
     </div>
-
-    <!-- Human (single) -->
     <div class="mc-card">
       <div class="mc-title">Human (Operator)</div>
       <label>Base Task (s)<br><input id="hBase" type="number" min="0.5" step="0.5" value="2.5"></label><br><br>
       <label>Jitter (s)<br><input id="hJitter" type="number" min="0" step="0.5" value="2"></label><br><br>
-      <label>Policy<br>
-        <select id="hPolicy">
+      <label>Task Strategy<br>
+        <select id="hTaskStrategy">
           <option value="highestSeverity">Highest Severity</option>
           <option value="earliestShown">Earliest Shown</option>
+          <option value="preemptOnHigherSeverity">Preempt on Higher Severity</option>
         </select>
       </label>
+      <br><br>
+      <label>Preempt Threshold (0–1)<br><input id="hPreempt" type="number" min="0" max="1" step="0.05" value="0.8"></label>
     </div>
-
-    <!-- Strategy 1 -->
     <div class="mc-card">
-      <div class="mc-title">Strategy 1</div>
-      <label>Presentation<br>
-        <select id="s1">
-          <option value="singleHighest">Single-queued (don’t switch)</option>
-          <option value="showAll">All at once</option>
-        </select>
-      </label>
+      <div class="mc-title">Policy 1</div>
+      <select id="s1">
+        <option value="singleHighest">Single-queued (don’t switch)</option>
+        <option value="singleHighestNonInterrupting">Single-queued (alias)</option>
+        <option value="severityEscalation">Severity Escalation (interrupt)</option>
+        <option value="showAll">All at once</option>
+      </select>
     </div>
-
-    <!-- Strategy 2 -->
     <div class="mc-card">
-      <div class="mc-title">Strategy 2</div>
-      <label>Presentation<br>
-        <select id="s2">
-          <option value="showAll">All at once</option>
-          <option value="singleHighest">Single-queued (don’t switch)</option>
-        </select>
-      </label>
-
-      <div class="mc-actions" style="margin-top:12px;">
+      <div class="mc-title">Policy 2</div>
+      <select id="s2">
+        <option value="showAll">All at once</option>
+        <option value="singleHighest">Single-queued (don’t switch)</option>
+        <option value="singleHighestNonInterrupting">Single-queued (alias)</option>
+        <option value="severityEscalation">Severity Escalation (interrupt)</option>
+      </select>
+      <div class="mc-actions">
         <button id="runMc" class="btn">▶ Run Simulation</button>
         <button id="dlCsv" class="btn" disabled>⬇ Download CSV</button>
       </div>
       <div id="mcStatus" style="margin-top:8px;color:#0077cc;"></div>
     </div>
   </div>
-
   <div class="mc-summaries">
-    <div class="summary" id="sumA">
-      <h4>Strategy 1 Summary</h4>
-      <div id="sumATable"></div>
-    </div>
-    <div class="summary" id="sumB">
-      <h4>Strategy 2 Summary</h4>
-      <div id="sumBTable"></div>
-    </div>
+    <div class="summary"><h4>Policy 1 Summary</h4><div id="sumATable"></div></div>
+    <div class="summary"><h4>Policy 2 Summary</h4><div id="sumBTable"></div></div>
   </div>
 </div>
 
-<!-- Audio + logic -->
-<audio id="lowSound" src="./assets/low.mp3" preload="auto"></audio>
-<audio id="mediumSound" src="./assets/medium1.mp3" preload="auto"></audio>
-<audio id="highSound" src="./assets/hhh.mp3" preload="auto"></audio>
+<audio id="lowSound" src="./assets/low.mp3"></audio>
+<audio id="mediumSound" src="./assets/medium1.mp3"></audio>
+<audio id="highSound" src="./assets/hhh.mp3"></audio>
 
 <script src="./js/alarm_concepts.js"></script>
-
 <script>
-  // ---- Game state ----
-  let trial, startTime, interval;
-  let correctActions = [];
-  let score = 0;
-  let activeConditionIndex = -1;
-  let displayCounter = 1;
-  let hideResolved = false;
-  let pendingCompletion = false;
+  let trial, startTime, interval, correctActions=[], score=0, activeConditionIndex=-1, displayCounter=1, hideResolved=false;
 
-  const goBtn = document.getElementById("goBtn");
-  const playAgainBtn = document.getElementById("playAgainBtn");
-  const startScreen = document.getElementById("startScreen");
-  const container = document.getElementById("container");
-  const conditionsDiv = document.getElementById("conditions");
-  const timerDisplay = document.getElementById("timer");
-  const finalScoreDiv = document.getElementById("finalScore");
-  const sidebar = document.getElementById("sidebar");
-  const completeBtn = document.getElementById("completeBtn");
-  const fatigueMeter = document.getElementById("fatigueMeter");
+  const goBtn=document.getElementById("goBtn"), playAgainBtn=document.getElementById("playAgainBtn"), startScreen=document.getElementById("startScreen"),
+        container=document.getElementById("container"), conditionsDiv=document.getElementById("conditions"), timerDisplay=document.getElementById("timer"),
+        finalScoreDiv=document.getElementById("finalScore"), sidebar=document.getElementById("sidebar"), fatigueMeter=document.getElementById("fatigueMeter");
+  const completeBtn=document.getElementById("completeBtn"); // hidden but harmless
 
-  // ---- Audio (continuous until all resolved) ----
-  const low = document.getElementById("lowSound");
-  const medium = document.getElementById("mediumSound");
-  const high = document.getElementById("highSound");
+  const low=document.getElementById("lowSound"), medium=document.getElementById("mediumSound"), high=document.getElementById("highSound");
+  function stopAllAlarms(){[low,medium,high].forEach(a=>{a.pause();a.currentTime=0;a.loop=false;});}
+  function updateAlarmSound(){ if(!trial) return; const active=trial.conditions.filter(c=>c.shown&&!c.resolved); if(active.length===0){stopAllAlarms();return;}
+    const maxSeverity=Math.max(...active.map(c=>c.severity)); const target=(maxSeverity<=2)?low:(maxSeverity===3?medium:high);
+    [low,medium,high].forEach(a=>{if(a!==target){a.pause();a.currentTime=0;a.loop=false;}}); if(target.paused){target.loop=true; target.play().catch(()=>{});} }
 
-  function stopAllAlarms() {
-    [low, medium, high].forEach(a => {
-      a.pause();
-      a.currentTime = 0;
-      a.loop = false;
-    });
-  }
+  function formatTime(ms){const s=Math.floor(ms/1000); return [String(Math.floor(s/3600)).padStart(2,'0'),String(Math.floor(s/60)%60).padStart(2,'0'),String(s%60).padStart(2,'0')].join(":");}
+  function updateTimer(){const now=Date.now(); timerDisplay.innerHTML=`⏱️ ${formatTime(now-startTime)}`; const sec=Math.floor((now-startTime)/1000);
+    trial.getConditionsToShow(sec).forEach(c=>{showCondition(c,trial.conditions.indexOf(c)); c.shown=true; c.startShownTime=Date.now();});
+    highlightCurrent(); trial.calculateFatigue(now,1); fatigueMeter.textContent=`Fatigue: ${trial.fatigue.toFixed(2)}`; updateAlarmSound();}
 
-  function updateAlarmSound() {
-    if (!trial) return;
-    const active = trial.conditions.filter(c => c.shown && !c.resolved);
-    if (active.length === 0) {
-      stopAllAlarms();
-      return;
-    }
-    const maxSeverity = Math.max(...active.map(c => c.severity));
-    const target = (maxSeverity <= 2) ? low : (maxSeverity === 3 ? medium : high);
-    [low, medium, high].forEach(a => { if (a !== target) { a.pause(); a.currentTime = 0; a.loop = false; } });
-    if (target.paused) { target.loop = true; target.play().catch(() => {}); }
-  }
+  function showCondition(c,i){c.displayNumber=displayCounter++; const div=document.createElement("div"); div.className="condition"; div.id=`condition-${i}`;
+    div.innerHTML=`<strong>Condition ${c.displayNumber}</strong><br><em>Severity: ${c.severity}</em><br><span><strong>Correct Action:</strong> ${correctActions[i]}</span><br><span id="selected-${i}">Selected: None</span>`;
+    conditionsDiv.appendChild(div);}
+  function highlightCurrent(){document.querySelectorAll(".condition").forEach(div=>div.classList.remove("active")); for(const div of document.querySelectorAll(".condition")){const i=parseInt(div.id.split("-")[1]); const c=trial.conditions[i];
+      if(c.shown&&!c.resolved){div.classList.add("active"); activeConditionIndex=i; return;}} activeConditionIndex=-1;}
 
-  // ---- Utils ----
-  function formatTime(ms) {
-    const totalSec = Math.floor(ms / 1000);
-    const hours = String(Math.floor(totalSec / 3600)).padStart(2, '0');
-    const minutes = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
-    const seconds = String(totalSec % 60).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-  }
+  function handleActionClick(action){ if(activeConditionIndex===-1) return; const c=trial.conditions[activeConditionIndex]; const correct=correctActions[activeConditionIndex];
+    if(action!==correct){alert("❌ Wrong action! -2 points"); score-=2; return;}
+    document.getElementById(`selected-${activeConditionIndex}`).textContent=`Selected: ${action} ✅`; c.resolve();
+    const gain=(c.severity**3)/Math.max(1e-6,c.getResolutionTimeInSeconds()); score+=trial.adjustPerformance(gain);
+    if(hideResolved){document.getElementById(`condition-${activeConditionIndex}`)?.remove();} highlightCurrent(); updateAlarmSound();
+    if(trial.allResolved()){clearInterval(interval); stopAllAlarms(); finalScoreDiv.textContent=`🎯 Trial Complete! Final Score: ${score.toFixed(2)} | Accuracy≈${(trial.accuracy()*100).toFixed(0)}% | Speed×${trial.speedFactor().toFixed(2)}`;
+      playAgainBtn.style.display="inline-block";} }
 
-  function updateTimer() {
-    const now = Date.now();
-    timerDisplay.innerHTML = `⏱️ ${formatTime(now - startTime)}`;
-    const seconds = Math.floor((now - startTime) / 1000);
-    const toShow = trial.getConditionsToShow(seconds);
+  function generateActionButtons(n){ sidebar.innerHTML="<h3>Actions</h3>"; sidebar.appendChild(completeBtn);
+    for(let i=1;i<=10;i++){const b=document.createElement("button"); b.className="action-btn"; b.textContent=`Action ${i}`; b.dataset.action=`Action ${i}`;
+      b.addEventListener("click",()=>handleActionClick(b.dataset.action)); sidebar.appendChild(b);}
+    const all=Array.from({length:10},(_,i)=>`Action ${i+1}`); correctActions=all.sort(()=>0.5-Math.random()).slice(0,n); }
 
-    toShow.forEach((condition) => {
-      showCondition(condition, trial.conditions.indexOf(condition));
-      condition.shown = true;
-      condition.startShownTime = Date.now();
-    });
-
-    highlightCurrent();
-    trial.calculateFatigue(now, 1);
-    fatigueMeter.textContent = `Fatigue: ${trial.fatigue.toFixed(2)}`;
-    updateAlarmSound();
-  }
-
-  function showCondition(condition, index) {
-    condition.displayNumber = displayCounter++;
-    const div = document.createElement("div");
-    div.className = "condition";
-    div.id = `condition-${index}`;
-    div.innerHTML = `
-      <strong>Condition ${condition.displayNumber}</strong><br>
-      <em>Severity: ${condition.severity}</em><br>
-      <span><strong>Correct Action:</strong> ${correctActions[index]}</span><br>
-      <span id="selected-${index}">Selected: None</span>
-    `;
-    conditionsDiv.appendChild(div);
-  }
-
-  function highlightCurrent() {
-    const all = document.querySelectorAll(".condition");
-    all.forEach(div => div.classList.remove("active"));
-    for (const div of all) {
-      const index = parseInt(div.id.split("-")[1]);
-      const condition = trial.conditions[index];
-      if (condition.shown && !condition.resolved) {
-        div.classList.add("active");
-        activeConditionIndex = index;
-        return;
-      }
-    }
-    activeConditionIndex = -1;
-  }
-
-  function handleActionClick(action) {
-    if (activeConditionIndex === -1 || pendingCompletion) return;
-    const condition = trial.conditions[activeConditionIndex];
-    const correctAction = correctActions[activeConditionIndex];
-
-    if (action !== correctAction) {
-      alert("❌ Wrong action! -2 points");
-      score -= 2;
-      return;
-    }
-
-    pendingCompletion = true;
-    completeBtn.style.display = "block";
-    document.getElementById(`selected-${activeConditionIndex}`).textContent = `Selected: ${action} ✅`;
-  }
-
-  completeBtn.addEventListener("click", () => {
-    if (activeConditionIndex === -1) return;
-    const condition = trial.conditions[activeConditionIndex];
-    condition.resolve();
-    const resolutionTime = condition.getResolutionTimeInSeconds();
-
-    const baseGain = (condition.severity ** 3) / Math.max(1e-6, resolutionTime);
-    const gain = trial.adjustPerformance(baseGain); // base * (1 - f)
-    score += gain;
-
-    if (hideResolved) {
-      const resolvedDiv = document.getElementById(`condition-${activeConditionIndex}`);
-      if (resolvedDiv) resolvedDiv.remove();
-    }
-
-    pendingCompletion = false;
-    completeBtn.style.display = "none";
-    highlightCurrent();
-    updateAlarmSound();
-
-    if (trial.allResolved()) {
-      clearInterval(interval);
-      stopAllAlarms();
-      finalScoreDiv.textContent = `🎯 Trial Complete! Final Score: ${score.toFixed(2)} | Accuracy≈${(trial.accuracy()*100).toFixed(0)}% | Speed×${trial.speedFactor().toFixed(2)}`;
-      playAgainBtn.style.display = "inline-block";
-    }
-  });
-
-  function generateActionButtons(conditionCount) {
-    sidebar.innerHTML = "<h3>Actions</h3>";
-    sidebar.appendChild(completeBtn);
-    for (let i = 1; i <= 10; i++) {
-      const button = document.createElement("button");
-      button.className = "action-btn";
-      button.dataset.action = `Action ${i}`;
-      button.textContent = `Action ${i}`;
-      button.addEventListener("click", () => handleActionClick(button.dataset.action));
-      sidebar.appendChild(button);
-    }
-    const allActions = Array.from({ length: 10 }, (_, i) => `Action ${i + 1}`);
-    correctActions = allActions.sort(() => 0.5 - Math.random()).slice(0, conditionCount);
-  }
-
-  function startTrial(mode) {
-    if (interval) clearInterval(interval);
-    stopAllAlarms();
-
-    trial = new Trial(mode, 6);
-    score = 0;
-    startTime = Date.now();
-    displayCounter = 1;
-    correctActions = [];
-    trial.resetFatigue();
-    conditionsDiv.innerHTML = "";
-    finalScoreDiv.textContent = "";
-    playAgainBtn.style.display = "none";
-    sidebar.innerHTML = "<h3>Actions</h3>";
-    sidebar.appendChild(completeBtn);
-    completeBtn.style.display = "none";
-    pendingCompletion = false;
-    fatigueMeter.textContent = `Fatigue: ${trial.fatigue.toFixed(2)}`;
-
+  function startTrial(mode){ if(interval) clearInterval(interval); stopAllAlarms();
+    trial=new Trial(mode,6); score=0; startTime=Date.now(); displayCounter=1; trial.resetFatigue();
+    conditionsDiv.innerHTML=""; finalScoreDiv.textContent=""; playAgainBtn.style.display="none"; fatigueMeter.textContent=`Fatigue: ${trial.fatigue.toFixed(2)}`;
     generateActionButtons(trial.conditions.length);
+    if(mode==="severity"||mode==="severityHide"){trial.conditions.sort((a,b)=>b.severity-a.severity); hideResolved=(mode==="severityHide");
+      trial.conditions.forEach((c,i)=>{showCondition(c,i); c.shown=true; c.startShownTime=Date.now();}); highlightCurrent(); interval=setInterval(updateTimer,1000); updateAlarmSound();}
+    else{hideResolved=(mode==="simpleHide"); interval=setInterval(updateTimer,1000);} }
 
-    if (mode === "severity" || mode === "severityHide") {
-      trial.conditions.sort((a, b) => b.severity - a.severity);
-      hideResolved = (mode === "severityHide");
-      trial.conditions.forEach((condition, index) => {
-        showCondition(condition, index);
-        condition.shown = true;
-        condition.startShownTime = Date.now();
-      });
-      highlightCurrent();
-      interval = setInterval(updateTimer, 1000);
-      updateAlarmSound();
-    } else {
-      hideResolved = (mode === "simpleHide");
-      interval = setInterval(updateTimer, 1000);
-    }
-  }
+  goBtn.addEventListener("click",()=>{startScreen.style.display="none"; container.style.display="flex"; startTrial(document.getElementById("modeSelector").value);});
+  playAgainBtn.addEventListener("click",()=>{container.style.display="none"; startScreen.style.display="block"; playAgainBtn.style.display="none";});
 
-  goBtn.addEventListener("click", () => {
-    startScreen.style.display = "none";
-    container.style.display = "flex";
-    const selectedMode = document.getElementById("modeSelector").value;
-    startTrial(selectedMode);
-  });
 
-  playAgainBtn.addEventListener("click", () => {
-    container.style.display = "none";
-    startScreen.style.display = "block";
-    playAgainBtn.style.display = "none";
-  });
-
-  /* ====== Monte Carlo UI (Strategies) ====== */
+  /* ====== Monte Carlo UI (Policies) ====== */
   const mcEls = {
     N: document.getElementById('mcN'),
     conds: document.getElementById('mcConds'),
@@ -373,7 +182,7 @@
     T: document.getElementById('mcT'),
     hBase: document.getElementById('hBase'),
     hJitter: document.getElementById('hJitter'),
-    hPolicy: document.getElementById('hPolicy'),
+    hTaskStrategy: document.getElementById('hTaskStrategy'),
     s1: document.getElementById('s1'),
     s2: document.getElementById('s2'),
     run: document.getElementById('runMc'),
@@ -404,7 +213,7 @@
   }
 
   function toCSV(label, samples) {
-    const rows = [["strategy","totalTimeSec","finalFatigue","avgAccuracy","avgSpeedFactor","resolved","totalHarm"]];
+    const rows = [["policy","totalTimeSec","finalFatigue","avgAccuracy","avgSpeedFactor","resolved","totalHarm"]];
     for (const r of samples) {
       rows.push([label, r.totalTimeSec, r.finalFatigue, r.avgAccuracy, r.avgSpeedFactor, r.resolved, r.totalHarm]);
     }
@@ -424,14 +233,14 @@
       name: "op",
       baseTaskTimeSec: parseFloat(mcEls.hBase.value),
       taskTimeJitterSec: parseFloat(mcEls.hJitter.value),
-      policy: mcEls.hPolicy.value
+      taskStrategy: mcEls.hTaskStrategy.value
     });
 
-    const out = runMonteCarloStrategies({
+    const out = runMonteCarloPolicies({
       N,
       operator,
       trialParams: { number_conditions, horizonArrivalSec, T_for_notes: Tconst },
-      strategies: [mcEls.s1.value, mcEls.s2.value]
+      policies: [mcEls.s1.value, mcEls.s2.value]
     });
 
     const s1Summary = out[mcEls.s1.value].summary;
@@ -440,14 +249,14 @@
     renderSummary(mcEls.sumATable, s1Summary);
     renderSummary(mcEls.sumBTable, s2Summary);
 
-    const csv = toCSV("strategy1", s1Summary.samples) + "\n" + toCSV("strategy2", s2Summary.samples);
+    const csv = toCSV("policy1", s1Summary.samples) + "\n" + toCSV("policy2", s2Summary.samples);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     mcEls.dl.disabled = false;
     mcEls.dl.onclick = () => {
       const a = document.createElement('a');
       a.href = url;
-      a.download = `monte_carlo_strategies_${N}trials.csv`;
+      a.download = `monte_carlo_policies_${N}trials.csv`;
       a.click();
       URL.revokeObjectURL(url);
     };
