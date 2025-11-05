@@ -38,8 +38,11 @@ A different way of thinking about this is that ADaM does:
 
 # Diagram
 
+Our basic architecture. It is important to understand that every domain requires a small amount of configuraiton. It is our goal to move this from "coding" to "configuration", so that a complete, custom domain of alarms can be created with no programming.
+
 <img width="960" height="720" alt="Adam Architecture" src="https://github.com/user-attachments/assets/2ff9de93-0797-4148-bce0-b31b789f6ddc" />
 
+Below, find an "action sequence diagram":
 
 <img width="960" height="720" alt="Dialog Management Action Diagram" src="https://github.com/user-attachments/assets/296977ea-4a8c-47f6-ba21-d5bd2023eb23" />
 
