@@ -29,6 +29,14 @@ events should be given identities so that they can be correctly dismissied witho
 A necessary part of this project will be psychological testing. For example, we can imagine a test regime consisting of an incoming alarm schedule.
 Two different ADaMs can be compared based on how effectively they allow a human being to process the alarm responses in a test environment.
 
+A different way of thinking about this is that ADaM does:
+1. Logging
+2. Anunciation Management (send alarms to mulitple annunciators)
+3. Resolution Management (that is, managing Resolutions and Dismissals)
+4. Process Management (that is, managing Acknowledgment and Shelving)
+5. Time Managment (that is, managing the need to mutings which are of limited time, reminding the operator of open alarm conditions, managing re-alarming of particular conditions).
+
+
 # License
 
 All work in this Repo will be released under the fiercely open source [Public Invention Free-Culture License Guidelines](https://github.com/PubInv/PubInv-License-Guidelines).
