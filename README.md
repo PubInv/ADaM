@@ -36,6 +36,12 @@ A different way of thinking about this is that ADaM does:
 4. Process Management (that is, managing Acknowledgment and Shelving)
 5. Time Managment (that is, managing the need to mutings which are of limited time, reminding the operator of open alarm conditions, managing re-alarming of particular conditions).
 
+# Diagram
+
+<img width="960" height="720" alt="Adam Architecture" src="https://github.com/user-attachments/assets/2ff9de93-0797-4148-bce0-b31b789f6ddc" />
+
+
+<img width="960" height="720" alt="Dialog Management Action Diagram" src="https://github.com/user-attachments/assets/296977ea-4a8c-47f6-ba21-d5bd2023eb23" />
 
 # License
 
