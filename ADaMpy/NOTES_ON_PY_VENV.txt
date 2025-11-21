@@ -1,0 +1,3 @@
+Remember to run:
+source ADaMenv/bin/activate
+(if ADaMenv is the name of your venv.)

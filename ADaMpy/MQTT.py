@@ -1,9 +1,10 @@
 import time
 import paho.mqtt.client as mqtt
 
-broker_address = "broker.hivemq.com" 
+# broker_address = "broker.hivemq.com"
+broker_address = "broker.mqttdashboard.com"
 broker_port = 1883
-topic = "test topic to see if this code works"
+topic = "PubInv-test937"
 
 #creating a new MQTT client
 client = mqtt.Client(client_id="PythonSender", protocol=mqtt.MQTTv311)
