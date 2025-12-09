@@ -1,10 +1,9 @@
 import time
 import paho.mqtt.client as mqtt
 
-# broker_address = "broker.hivemq.com"
-broker_address = "broker.mqttdashboard.com"
+broker_address = "broker.hivemq.com" 
 broker_port = 1883
-topic = "PubInv-test937"
+topic = "test topic to see if this code works"
 
 #creating a new MQTT client
 client = mqtt.Client(client_id="PythonSender", protocol=mqtt.MQTTv311)
@@ -27,6 +26,7 @@ while True:
 #disconnect from the broker
 client.disconnect()
 print("Disconnected from broker")
+
 
 
 
