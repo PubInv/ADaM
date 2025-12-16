@@ -1,0 +1,14 @@
+2025-12-13 23:46:20,518 | INFO | CONNECTING | broker=broker.mqttdashboard.com | port=1883
+2025-12-13 23:46:20,693 | INFO | SUBSCRIBE_REQUEST | topic=PubInv-test973 | qos=1
+2025-12-14 23:03:59,769 | INFO | CONNECTING | broker=broker.mqttdashboard.com | port=1883
+2025-12-14 23:03:59,955 | INFO | SUBSCRIBE_REQUEST | topic=PubInv-test973 | qos=1
+2025-12-14 23:19:34,434 | INFO | CONNECTING | broker=broker.mqttdashboard.com | port=1883
+2025-12-14 23:19:34,562 | INFO | SUBSCRIBE_REQUEST | topic=PubInv-test973 | qos=1
+2025-12-14 23:46:31,224 | INFO | CONNECTING | broker=broker.mqttdashboard.com | port=1883
+2025-12-14 23:46:31,422 | INFO | SUBSCRIBE_REQUEST | topic=PubInv-test973 | qos=1
+{"alarm_id": "f2b744c0-bbc2-43dc-b1d8-352c5b51cbe8", "level": 1, "label": "Minor", "description": "fire", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T04:51:42.771197Z"}
+{"alarm_id": "016a64b7-3766-4469-bdfe-f75c59980080", "level": 3, "label": "Serious", "description": "cat is escaping the house", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T04:54:03.574414Z"}
+{"alarm_id": "823ca276-6e6b-4eb5-8344-dc9d33679b7f", "level": 4, "label": "Severe", "description": "fire in the hallway", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T05:06:31.538050Z"}
+{"alarm_id": "a8f2ae57-06bc-4c6d-94a7-2ae2ed49e5eb", "level": 5, "label": "Critical", "description": "zombies incoming", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T05:07:16.416334Z"}
+{"alarm_id": "aa894156-26fd-4a32-9319-77b412617dcf", "level": 1, "label": "Minor", "description": "injured toe", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T05:07:48.397666Z"}
+{"alarm_id": "3b8430c0-32e2-4328-89c2-3243b705be71", "level": 2, "label": "Elevated", "description": "head hurts", "source": "manual-cli", "topic": "PubInv-test973", "received_at": "2025-12-15T05:08:34.060764Z"}
