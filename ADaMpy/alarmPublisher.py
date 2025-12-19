@@ -1,7 +1,7 @@
 from enum import IntEnum
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
@@ -70,7 +70,7 @@ class AlarmPublisher:
             "alarm_id": alarm_id,
             "level": int(level),
             "label": self.level_names[level],
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
         if description:
@@ -91,8 +91,8 @@ class AlarmPublisher:
             "level": int(level),
             "label": self.level_names[level],
             "description": description,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
-    "       topic": self.topic,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "topic": self.topic,
 }
         
         with open("sent_alarms.jsonl", "a", encoding="utf-8") as f:
