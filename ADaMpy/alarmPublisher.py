@@ -6,13 +6,40 @@ from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
 # 5 levels for the alarm
+# TODO: change to use the Krake standard levels and names
 class AlarmLevel(IntEnum):
     """Standardized levels 1–5."""
-    MINOR = 1        
+    MINOR = 1
     ELEVATED = 2
     SERIOUS = 3
     SEVERE = 4
-    CRITICAL = 5     
+    CRITICAL = 5
+
+default_names = {
+    AlarmLevel.MINOR: "Minor",
+    AlarmLevel.ELEVATED: "Elevated",
+    AlarmLevel.SERIOUS: "Serious",
+    AlarmLevel.SEVERE: "Severe",
+    AlarmLevel.CRITICAL: "Critical",
+}
+
+class Alarm:
+#    alarm_id: str,
+#    level: AlarmLevel,
+#    descr: str,
+#    timestamp: str
+    def __init__(self, alarm_id, level, descr):
+    # Instance attributes (unique to each dog object)
+        self.alarm_id = alarm_id
+        self.level = level
+        self.description = descr
+
+
+
+# This will hold the current alarms
+currentAlarms = []
+
+
 
 
 class AlarmPublisher:
@@ -94,7 +121,7 @@ class AlarmPublisher:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "topic": self.topic,
 }
-        
+
         with open("sent_alarms.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "n")
 
@@ -103,6 +130,18 @@ class AlarmPublisher:
     def close(self):
         self.client.loop_stop()
         self.client.disconnect()
+
+def printAlarm(alarm):
+     print(
+                f"Alarm {alarm.alarm_id} | "
+                f"level {int(alarm.level)} ({default_names[alarm.level]}) | "
+                f"description: {alarm.description}"
+            )
+def printAlarmList(alarms):
+    print("Current Alarms:")
+    for alarm in alarms:
+        printAlarm(alarm)
+    print("End of Current Alarms")
 
 
 def main():
@@ -131,9 +170,13 @@ def main():
     print("  Example: 3 door left open")
     print("  Example: 5 fire in lab 2")
     print("  Type 'exit' to quit.\n")
+    printAlarmList(currentAlarms)
 
     try:
         while True:
+            # Make this take a letter as an initial command like:
+            # a3 hair on fire / add level-3 alarm
+            # d2 / delete alarm number 2 if it exists
             raw = input("Alarm> ").strip()
             if not raw:
                 continue
@@ -152,6 +195,13 @@ def main():
                 print("Please start with a number 1–5 for the alarm level.")
                 continue
 
+            # Now we construct an Alarm object,
+            # add it to current Alarms, and then send it.
+            newAlarm = Alarm(457, level_num, description)
+            currentAlarms.append(newAlarm)
+
+
+            # TODO: rewrite this to accept an Alarm object as a parameter
             alarm_id = publisher.send_alarm(
                 level,
                 description=description,
@@ -163,6 +213,7 @@ def main():
                 f"level {int(level)} ({publisher.level_names[level]}) | "
                 f"description: {description}"
             )
+            printAlarmList(currentAlarms)
     finally:
         publisher.close()
         print("Disconnected from broker.")
@@ -172,14 +223,14 @@ if __name__ == "__main__":
     main()
 
     #TODO
-    #Create a Log feature for this program that stores information about the alarm such as 
+    #Create a Log feature for this program that stores information about the alarm such as
     # alarm level / time of the alarm / description of the alarm.
     # make the user somehow type something to indicate that they completed the alarm and then
     # give the user another alarm to do and so on.
     # store these alarms in a text file or something and give the user the ability to dismiss an
     # alarm and make sure to delete that from the text file.
 
-    #Note, maybe I should ask Rob on how to approach this, should i make a mini game-like program where the 
+    #Note, maybe I should ask Rob on how to approach this, should i make a mini game-like program where the
     # terminal would send me alarms and then make the user type something to indicate that they completed the
     # alarm so the terminal can send them another alarm and so on. but also give the user the option to dismiss
     # an alarm. SO perhaps it should be something like a TO-DO list, where I present the user with a series of alarms
