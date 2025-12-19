@@ -5,6 +5,13 @@ from datetime import datetime, timezone
 
 import paho.mqtt.client as mqtt
 
+# Improvements:
+# 1. IMPORTANT: allow deletion from currentAlarms
+# 2. change names to Krake names
+# 3. remove duplication of names in two places
+# 4. Add timestamps
+# 5. Need a function for generating unique ids
+
 # 5 levels for the alarm
 # TODO: change to use the Krake standard levels and names
 class AlarmLevel(IntEnum):
@@ -39,7 +46,7 @@ class Alarm:
 # This will hold the current alarms
 currentAlarms = []
 
-
+# Here we will add our first intellgent Alarm publication Policy...
 
 
 class AlarmPublisher:
