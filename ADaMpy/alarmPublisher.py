@@ -2,7 +2,7 @@ from enum import IntEnum
 import json
 import uuid
 from datetime import datetime, timezone
-
+import threading
 import paho.mqtt.client as mqtt
 
 # Improvements:
@@ -14,20 +14,22 @@ import paho.mqtt.client as mqtt
 
 # 5 levels for the alarm
 # TODO: change to use the Krake standard levels and names
+
+alarms_lock = threading.Lock()
 class AlarmLevel(IntEnum):
     """Standardized levels 1–5."""
-    MINOR = 1
-    ELEVATED = 2
-    SERIOUS = 3
-    SEVERE = 4
-    CRITICAL = 5
+    INFORMATIONAL = 1
+    PROBLEM = 2
+    WARNING = 3
+    CRITICAL = 4
+    PANIC = 5
 
 default_names = {
-    AlarmLevel.MINOR: "Minor",
-    AlarmLevel.ELEVATED: "Elevated",
-    AlarmLevel.SERIOUS: "Serious",
-    AlarmLevel.SEVERE: "Severe",
+    AlarmLevel.INFORMATIONAL: "Informational",
+    AlarmLevel.PROBLEM: "Problem",
+    AlarmLevel.WARNING: "Warning",
     AlarmLevel.CRITICAL: "Critical",
+    AlarmLevel.PANIC: "Panic",
 }
 
 class Alarm:
@@ -35,7 +37,7 @@ class Alarm:
 #    level: AlarmLevel,
 #    descr: str,
 #    timestamp: str
-    def __init__(self, alarm_id, level, descr):
+    def __init__(self, alarm_id: str, level:AlarmLevel, descr:str | None):
     # Instance attributes (unique to each dog object)
         self.alarm_id = alarm_id
         self.level = level
@@ -65,6 +67,7 @@ class AlarmPublisher:
         retain: bool = False,
         level_names: dict | None = None,
         ack_topic: str | None = None,  # where receivers should send acks (optional)
+        event_topic: str | None = None,
     ):
         # Configure MQTT client
         self.client = mqtt.Client(client_id=client_id, protocol=protocol)
@@ -72,16 +75,17 @@ class AlarmPublisher:
         self.client.loop_start()
 
         self.topic = topic
+        self.event_topic = event_topic or (topic + "/events")
         self.qos = qos
         self.retain = retain
         self.ack_topic = ack_topic
 
         default_names = {
-            AlarmLevel.MINOR: "Minor",
-            AlarmLevel.ELEVATED: "Elevated",
-            AlarmLevel.SERIOUS: "Serious",
-            AlarmLevel.SEVERE: "Severe",
+            AlarmLevel.INFORMATIONAL: "Informational",
+            AlarmLevel.PROBLEM: "Probelm",
+            AlarmLevel.WARNING: "Warning",
             AlarmLevel.CRITICAL: "Critical",
+            AlarmLevel.PANIC: "Panic",
         }
 
         if level_names:
@@ -130,9 +134,21 @@ class AlarmPublisher:
 }
 
         with open("sent_alarms.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_entry) + "n")
+            f.write(json.dumps(log_entry) + "\n")
 
         return alarm_id
+    
+    def dismiss_alarm(self, alarm_id: str, **extra_fields) -> None:
+        payload = {
+            "event": "dismissed",
+            "alarm_id": alarm_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if extra_fields:
+            payload.update(extra_fields)
+
+        self.client.publish(self.event_topic, json.dumps(payload), qos=self.qos, retain=False)
+
 
     def close(self):
         self.client.loop_stop()
@@ -190,6 +206,25 @@ def main():
             if raw.lower() == "exit":
                 break
 
+            if raw.upper().startswith("D-"):
+                try:
+                    idx = int(raw.split("-",1)[1])
+                except ValueError:
+                    print(" Use D-<n> to dismiss alarm #n")
+                    continue
+
+                if idx < 1 or idx > len(currentAlarms):
+                    print(f" No alarm #{idx} to dismiss.")
+                    continue
+
+                alarm_to_dismiss = currentAlarms[idx - 1]
+                publisher.dismiss_alarm(alarm_to_dismiss.alarm_id, dismissed_by="manual-cli")
+
+                currentAlarms.pop(idx - 1)
+                print(f" Dismissed alarm #{idx} (alarm_id={alarm_to_dismiss.alarm_id})")
+                printAlarmList(currentAlarms)
+                continue
+
             parts = raw.split(maxsplit=1)
             level_str = parts[0]
             description = parts[1] if len(parts) > 1 else None
@@ -202,18 +237,18 @@ def main():
                 print("Please start with a number 1–5 for the alarm level.")
                 continue
 
-            # Now we construct an Alarm object,
-            # add it to current Alarms, and then send it.
-            newAlarm = Alarm(457, level_num, description)
-            currentAlarms.append(newAlarm)
-
-
-            # TODO: rewrite this to accept an Alarm object as a parameter
+# TODO: rewrite this to accept an Alarm object as a parameter
             alarm_id = publisher.send_alarm(
                 level,
                 description=description,
                 source="manual-cli",  # example extra field
             )
+# Now we construct an Alarm object,
+# add it to current Alarms, and then send it.
+            newAlarm = Alarm(alarm_id, level, description)
+            currentAlarms.append(newAlarm)
+
+
 
             print(
                 f"Sent alarm {alarm_id} | "

@@ -49,23 +49,23 @@ def print_alarm_list():
         )
     print("-------\n")
 
-def dismiss_alarm(index_1_based: int):
-    with alarms_lock:
-        if index_1_based < 1 or index_1_based > len(alarms):
-            print(f"invalid alarm number: {index_1_based}")
-            return
+# def dismiss_alarm(index_1_based: int):
+#     with alarms_lock:
+#         if index_1_based < 1 or index_1_based > len(alarms):
+#             print(f"invalid alarm number: {index_1_based}")
+#             return
         
-        alarm = alarms[index_1_based -1]
-        if alarm.get("status") == "dismissed":
-            print(f"alarm #{index_1_based} is alread dismissed.")
-            return
+#         alarm = alarms[index_1_based -1]
+#         if alarm.get("status") == "dismissed":
+#             print(f"alarm #{index_1_based} is alread dismissed.")
+#             return
         
-        alarm["status"] = "dismissed"
-        alarm["dismissed_at"] = utc_now()
+#         alarm["status"] = "dismissed"
+#         alarm["dismissed_at"] = utc_now()
 
-        rewrite_jsonl(alarms)
+#         rewrite_jsonl(alarms)
 
-    print(f"Dismissed alarm #{index_1_based} (alarm_id={alarm.get('alarm_id')})")
+#     print(f"Dismissed alarm #{index_1_based} (alarm_id={alarm.get('alarm_id')})")
 
 def command_loop():
     print("\nCommands:")
