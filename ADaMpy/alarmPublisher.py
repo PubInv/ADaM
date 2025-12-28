@@ -1,7 +1,10 @@
+from __future__ import annotations
 from enum import IntEnum
 import json
 import uuid
 from datetime import datetime, timezone
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 import threading
 import paho.mqtt.client as mqtt
 
@@ -12,8 +15,7 @@ import paho.mqtt.client as mqtt
 # 4. Add timestamps
 # 5. Need a function for generating unique ids
 
-# 5 levels for the alarm
-# TODO: change to use the Krake standard levels and names
+
 
 alarms_lock = threading.Lock()
 class AlarmLevel(IntEnum):
@@ -24,7 +26,7 @@ class AlarmLevel(IntEnum):
     CRITICAL = 4
     PANIC = 5
 
-default_names = {
+default_names: Dict[AlarmLevel, str] = {
     AlarmLevel.INFORMATIONAL: "Informational",
     AlarmLevel.PROBLEM: "Problem",
     AlarmLevel.WARNING: "Warning",
@@ -32,21 +34,53 @@ default_names = {
     AlarmLevel.PANIC: "Panic",
 }
 
+@dataclass
 class Alarm:
-#    alarm_id: str,
-#    level: AlarmLevel,
-#    descr: str,
-#    timestamp: str
-    def __init__(self, alarm_id: str, level:AlarmLevel, descr:str | None):
-    # Instance attributes (unique to each dog object)
-        self.alarm_id = alarm_id
-        self.level = level
-        self.description = descr
+    """Represents an alarm with a level, description, unique ID, and timestamp."""
+    level: AlarmLevel
+    description: Optional[str] = None
 
+    alarm_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
+    def label(self, level_names: Dict [AlarmLevel, str]) -> str:
+        return level_names.get(self.level, str(int(self.level)))
+    
+    def to_payload(self, level_names: Dict [AlarmLevel, str],
+                  ack_topic: Optional[str] = None,
+                  extra_fields: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        payload:Dict[str, Any] = {
+            "alarm_id": self.alarm_id,
+            "level": int(self.level),
+            "label": self.label(level_names),
+            "timestamp":self.timestamp,
+        }
 
-# This will hold the current alarms
-currentAlarms = []
+        if self.description:
+            payload["description"] = self.description
+
+        if ack_topic is not None:
+            payload["ack_topic"] = ack_topic
+
+        if extra_fields:
+            payload.update(extra_fields)
+
+        return payload
+    
+    def to_log_entry(
+            self,
+            level_names:Dict[AlarmLevel, str],
+            topic: str,
+    ) -> Dict[str, Any]:
+        return {
+            "alarm_id": self.alarm_id,
+            "level": int(self.level),
+            "label": self.label(level_names),
+            "description": self.description,
+            "timestamp": self.timestamp,
+            "topic": topic,
+        }
+    
 
 # Here we will add our first intellgent Alarm publication Policy...
 
@@ -66,7 +100,7 @@ class AlarmPublisher:
         qos: int = 1,
         retain: bool = False,
         level_names: dict | None = None,
-        ack_topic: str | None = None,  # where receivers should send acks (optional)
+        ack_topic: str | None = None,  # where receivers should send acks
         event_topic: str | None = None,
     ):
         # Configure MQTT client
@@ -80,63 +114,31 @@ class AlarmPublisher:
         self.retain = retain
         self.ack_topic = ack_topic
 
-        default_names = {
-            AlarmLevel.INFORMATIONAL: "Informational",
-            AlarmLevel.PROBLEM: "Probelm",
-            AlarmLevel.WARNING: "Warning",
-            AlarmLevel.CRITICAL: "Critical",
-            AlarmLevel.PANIC: "Panic",
-        }
-
+        self.level_names: Dict[AlarmLevel,str] = dict(default_names)
         if level_names:
-            default_names.update(level_names)
+            self.level_names.update(level_names)
 
-        self.level_names = default_names
+        
 
-    def send_alarm(
-        self,
-        level: AlarmLevel,
-        description: str | None = None,
-        **extra_fields,
-    ) -> str:
-        """
-        Publish an alarm message as JSON and return the alarm_id.
-        """
-        alarm_id = str(uuid.uuid4())  # unique ID for this alarm
+    def send_alarm(self, alarm: Alarm, **extra_fields) -> str:
+        payload = alarm.to_payload(
+            level_names = self.level_names,
+            ack_topic = self.ack_topic,
+            extra_fields = extra_fields or None,
+        )
+        
+    
+        self.client.publish(self.topic, json.dumps(payload), qos=self.qos, retain=self.retain)
 
-        payload = {
-            "alarm_id": alarm_id,
-            "level": int(level),
-            "label": self.level_names[level],
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
-
-        if description:
-            payload["description"] = description
-
-        if self.ack_topic is not None:
-            payload["ack_topic"] = self.ack_topic
-
-        # Allow callers to add custom fields
-        if extra_fields:
-            payload.update(extra_fields)
-
-        data = json.dumps(payload)
-        self.client.publish(self.topic, data, qos=self.qos, retain=self.retain)
-
-        log_entry = {
-            "alarm_id": alarm_id,
-            "level": int(level),
-            "label": self.level_names[level],
-            "description": description,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "topic": self.topic,
-}
+        log_entry = alarm.to_log_entry(
+            level_names = self.level_names,
+            topic = self.topic,
+        )
 
         with open("sent_alarms.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_entry) + "\n")
 
-        return alarm_id
+        return alarm.alarm_id
     
     def dismiss_alarm(self, alarm_id: str, **extra_fields) -> None:
         payload = {
@@ -154,18 +156,23 @@ class AlarmPublisher:
         self.client.loop_stop()
         self.client.disconnect()
 
-def printAlarm(alarm):
+def print_alarm(alarm: Alarm, level_names:Dict[AlarmLevel, str]) -> None:
      print(
-                f"Alarm {alarm.alarm_id} | "
-                f"level {int(alarm.level)} ({default_names[alarm.level]}) | "
-                f"description: {alarm.description}"
-            )
-def printAlarmList(alarms):
+        f"Alarm {alarm.alarm_id} | "
+        f"time {alarm.timestamp} | "
+        f"level {int(alarm.level)} ({alarm.label(level_names)}) | "
+        f"description: {alarm.description}"
+    )
+     
+def print_alarm_list(alarms: list[Alarm], level_names: Dict[AlarmLevel, str]) -> None:
     print("Current Alarms:")
     for alarm in alarms:
-        printAlarm(alarm)
+        print_alarm(alarm, level_names)
     print("End of Current Alarms")
 
+
+# This will hold the current alarms
+currentAlarms = []
 
 def main():
     # === CONFIG: adjust these to match your subscriber ===
@@ -193,13 +200,11 @@ def main():
     print("  Example: 3 door left open")
     print("  Example: 5 fire in lab 2")
     print("  Type 'exit' to quit.\n")
-    printAlarmList(currentAlarms)
+    print_alarm_list(currentAlarms, publisher.level_names)
 
     try:
         while True:
-            # Make this take a letter as an initial command like:
-            # a3 hair on fire / add level-3 alarm
-            # d2 / delete alarm number 2 if it exists
+            
             raw = input("Alarm> ").strip()
             if not raw:
                 continue
@@ -219,10 +224,10 @@ def main():
 
                 alarm_to_dismiss = currentAlarms[idx - 1]
                 publisher.dismiss_alarm(alarm_to_dismiss.alarm_id, dismissed_by="manual-cli")
-
                 currentAlarms.pop(idx - 1)
+
                 print(f" Dismissed alarm #{idx} (alarm_id={alarm_to_dismiss.alarm_id})")
-                printAlarmList(currentAlarms)
+                print_alarm_list(currentAlarms, publisher.level_names)
                 continue
 
             parts = raw.split(maxsplit=1)
@@ -237,25 +242,23 @@ def main():
                 print("Please start with a number 1–5 for the alarm level.")
                 continue
 
-# TODO: rewrite this to accept an Alarm object as a parameter
-            alarm_id = publisher.send_alarm(
-                level,
-                description=description,
-                source="manual-cli",  # example extra field
-            )
+
 # Now we construct an Alarm object,
 # add it to current Alarms, and then send it.
-            newAlarm = Alarm(alarm_id, level, description)
+            newAlarm = Alarm(level=level, description=description)
+            #newAlarm = Alarm(level=level, description=description)
             currentAlarms.append(newAlarm)
 
-
+            publisher.send_alarm(newAlarm, source="manual-cli")
 
             print(
-                f"Sent alarm {alarm_id} | "
+                f"Sent alarm {newAlarm.alarm_id} | "
+                f"time {newAlarm.timestamp} | "
                 f"level {int(level)} ({publisher.level_names[level]}) | "
                 f"description: {description}"
             )
-            printAlarmList(currentAlarms)
+            print_alarm_list(currentAlarms, publisher.level_names)
+
     finally:
         publisher.close()
         print("Disconnected from broker.")
@@ -272,9 +275,3 @@ if __name__ == "__main__":
     # store these alarms in a text file or something and give the user the ability to dismiss an
     # alarm and make sure to delete that from the text file.
 
-    #Note, maybe I should ask Rob on how to approach this, should i make a mini game-like program where the
-    # terminal would send me alarms and then make the user type something to indicate that they completed the
-    # alarm so the terminal can send them another alarm and so on. but also give the user the option to dismiss
-    # an alarm. SO perhaps it should be something like a TO-DO list, where I present the user with a series of alarms
-    # and then give them the optionality to dismiss some and complete some. But then a question appears in my head,
-    # IF i go for this approach, do i have to type out the alarms manually? how would an approach like this be scaled?
