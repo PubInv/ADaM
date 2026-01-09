@@ -12,6 +12,14 @@ import paho.mqtt.client as mqtt
 # 4. Add timestamps
 # 5. Need a function for generating unique ids
 
+# TODOS for Saicharan
+# 1. Make sure we can code/decode MQTT messages
+# 2. Change the name of this file to ADaMServer
+# 3. Create a "Policy" class (which implements a Policy) (Eventually we will have many policies.)
+# 4. Create a separast Test program that generates Alarms randomly
+# 5. Help Muhammad make a good Krake Simulator.
+
+
 # 5 levels for the alarm
 # TODO: change to use the Krake standard levels and names
 
@@ -137,7 +145,7 @@ class AlarmPublisher:
             f.write(json.dumps(log_entry) + "\n")
 
         return alarm_id
-    
+
     def dismiss_alarm(self, alarm_id: str, **extra_fields) -> None:
         payload = {
             "event": "dismissed",
