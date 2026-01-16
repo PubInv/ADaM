@@ -173,7 +173,7 @@ def main():
     broker_port = 1883
 
     # This should match the topic your subscriber listens to
-    alarm_topic = "PubInv-test973"          # incoming for alarms
+    alarm_topic = "PubInv-test973/krake"          # incoming for alarms
     ack_topic = "PubInv-test973/acks"       # where acks will be sent
 
     publisher = AlarmPublisher(
@@ -264,13 +264,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-    #TODO
-    #Create a Log feature for this program that stores information about the alarm such as
-    # alarm level / time of the alarm / description of the alarm.
-    # make the user somehow type something to indicate that they completed the alarm and then
-    # give the user another alarm to do and so on.
-    # store these alarms in a text file or something and give the user the ability to dismiss an
-    # alarm and make sure to delete that from the text file.
+    
 
     #Note, maybe I should ask Rob on how to approach this, should i make a mini game-like program where the
     # terminal would send me alarms and then make the user type something to indicate that they completed the

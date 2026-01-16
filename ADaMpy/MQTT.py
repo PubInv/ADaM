@@ -30,9 +30,3 @@ print("Disconnected from broker")
 
 
 
-#TODO
-# So this program worked, what we need to do now is integrate the subscriber program that Rob made so that we can make more testing.
-# We have to create a python virtual environment first so we don't run into potential version difference problems(Have to do some research on how to do that) but the way 
-# to do that in the terminal is run the "python -m venv mohamadenv" command.
-# Expand on this program by creating classes, these classes are going to be responsible for classifying the different types of alarms and how critical they are going to be
-# (Going to need lots of research on this)
