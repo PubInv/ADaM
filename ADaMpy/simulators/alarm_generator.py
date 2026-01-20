@@ -9,6 +9,7 @@ import os
 BROKER = "public.cloud.shiftr.io"
 PORT = 1883
 TOPIC = "PubInv-test973"
+# TOPIC = "F4650BC0B52C_ALM"
 
 USERNAME = os.getenv("MQTT_USER")
 PASSWORD = os.getenv("MQTT_PASS")
@@ -35,8 +36,9 @@ try:
             "state": "active",
             "ack_topic": "PubInv-test973/acks",
         }
-
-        client.publish(TOPIC, json.dumps(payload), qos=1)
+        msg = "a1HelloLeeIhopethisScaresYou!"
+#       client.publish(TOPIC, json.dumps(payload), qos=1)
+       client.publish(TOPIC,msg, qos=1)
         print(f"[Generator] Sent alarm severity={level}")
 
         time.sleep(5)

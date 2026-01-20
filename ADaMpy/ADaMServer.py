@@ -6,6 +6,42 @@ import uuid
 import os
 import paho.mqtt.client as mqtt
 
+# `mac_to_NameDict.set("F4650BC0B52C", "KRAKE_US0006");
+# // Make MAC to Serial number association in this dictionary
+# StringDict mac_to_NameDict = new StringDict();
+# void setupDictionary() {
+
+
+#   mac_to_NameDict.set("F024F9F1B874", "KRAKE_LB0001");
+#   mac_to_NameDict.set("142B2FEB1F00", "KRAKE_LB0002");
+#   mac_to_NameDict.set("142B2FEB1C64", "KRAKE_LB0003");
+#   mac_to_NameDict.set("142B2FEB1E24", "KRAKE_LB0004");
+#   mac_to_NameDict.set("F024F9F1B880", "KRAKE_LB0005");
+
+#   mac_to_NameDict.set("F4650BC0B52C", "KRAKE_US0006");
+#   mac_to_NameDict.set("ECC9FF7D8EE8", "KRAKE_US0005");
+#   mac_to_NameDict.set("ECC9FF7D8EF4", "KRAKE_US0004");
+#   mac_to_NameDict.set("ECC9FF7C8C98", "KRAKE_US0003");
+#   mac_to_NameDict.set("ECC9FF7D8F00", "KRAKE_US0002");
+#   mac_to_NameDict.set("ECC9FF7C8BDC", "KRAKE_US0001");
+#   mac_to_NameDict.set("3C61053DF08C", "20240421_USA1");
+#   mac_to_NameDict.set("3C6105324EAC", "20240421_USA2");
+#   mac_to_NameDict.set("3C61053DF63C", "20240421_USA3");
+#   mac_to_NameDict.set("10061C686A14", "20240421_USA4");
+#   mac_to_NameDict.set("FCB467F4F74C", "20240421_USA5");
+#   mac_to_NameDict.set("CCDBA730098C", "20240421_LEB1");
+#   mac_to_NameDict.set("CCDBA730BFD4", "20240421_LEB2");
+#   mac_to_NameDict.set("CCDBA7300954", "20240421_LEB3");
+#   mac_to_NameDict.set("A0DD6C0EFD28", "20240421_LEB4");
+#   mac_to_NameDict.set("10061C684D28", "20240421_LEB5");
+#   mac_to_NameDict.set("A0B765F51E28", "MockingKrake_LEB");
+#   mac_to_NameDict.set("3C61053DC954", "Not Homework2, Maryville TN");
+# }//end setup mac_to_NameDict
+
+TOPIC = "PubInv-test973"
+# ALM_TOPIC = "F4650BC0B52C_ALM"
+# ACK_TOPIC = "F4650BC0B52C_ACK"
+# TOPIC = ACK_TOPIC
 
 # =========================
 # Alarm Severity Definition
@@ -142,6 +178,7 @@ class ADaMServer:
             data = json.loads(payload)
         except json.JSONDecodeError:
             print("[ADaM] Invalid ACK payload received")
+            print(payload)
             return
 
         alarm_id = data.get("alarm_id")
@@ -160,13 +197,14 @@ class ADaMServer:
 # =========================
 # Main Entry Point
 # =========================
+TOPIC = "F4650BC0B52C_ALM"
 
 def main():
     server = ADaMServer(
         broker_host="public.cloud.shiftr.io",
         broker_port=1883,
-        alarm_topic="PubInv-test973",
-        ack_topic="PubInv-test973/acks",
+        alarm_topic=TOPIC,
+        ack_topic=ACK_TOPIC,
         username=os.getenv("MQTT_USER"),
         password=os.getenv("MQTT_PASS"),
     )
