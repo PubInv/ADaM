@@ -1,202 +1,232 @@
 import json
+import os
 import threading
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
-
-# =========================
-# MQTT CONFIG (MUST MATCH ADaM)
-# =========================
 
 BROKER = "public.cloud.shiftr.io"
 PORT = 1883
 USERNAME = "public"
 PASSWORD = "public"
 
-ALARM_TOPIC = "adam/out/LEBANON-5"          # MUST match ADaM publish topic
-DEFAULT_ACK_TOPIC = "adam/acks"
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config", "adam_config.json")
 
-BEEP_LEVEL_THRESHOLD = 4
+lock = threading.Lock()
+alarms: list[dict] = []
+client = None
 
-alarms = []
-alarms_lock = threading.Lock()
+SUB_TOPIC = None
+ACK_TOPIC = None
+POLICY = "POLICY0"
 
-# =========================
-# HELPERS
-# =========================
 
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
-def try_beep():
-    try:
-        import winsound
-        winsound.Beep(1000, 300)
-    except Exception:
-        print("[Krake] BEEP")
+def load_config(path: str) -> dict:
+    with open(path, "r", encoding="utf-8-sig") as f:
+        return json.load(f)
 
 
-def print_alarm(a: dict, idx: int):
-    
-    print(
-        f"{idx}) [{a.get('status')}] "
-        f"lvl={a.get('level')} "
-        f"desc={a.get('description')} "
-        f"src={a.get('source')} "
-        f"id={a.get('alarm_id')}"
-    )
+def severity_sort_key(a: dict):
+    sev = int(a.get("severity", 0))
+    ts = a.get("timestamp") or a.get("received_at") or ""
+    seq = int(a.get("seq", 0))
+    return (-sev, ts, seq)
 
 
-def print_alarm_list(show_all: bool = False):
-    with alarms_lock:
-        if not alarms:
-            print("\nNo alarms yet.\n")
-            return
+def get_active_view():
+    """
+    Returns a list of tuples: (display_index_1_based, alarm_index_in_master_list, alarm_dict)
+    Display order depends on POLICY.
+    """
+    with lock:
+        active_items = [(idx, a) for idx, a in enumerate(alarms) if a.get("status") == "active"]
 
-        print("\n--- Alarms ---")
-        for i, a in enumerate(alarms, start=1):
-            if not show_all and a.get("status") != "active":
-                continue
-            print_alarm(a, i)
-        print("-------------\n")
-
-
-def set_status(index_1_based: int, new_status: str):
-    with alarms_lock:
-        if index_1_based < 1 or index_1_based > len(alarms):
-            print(f"Invalid alarm number: {index_1_based}")
-            return
-
-        alarm = alarms[index_1_based - 1]
-        alarm["status"] = new_status
-        alarm[f"{new_status}_at"] = utc_now()
-
-        # If acknowledging or dismissing, clear mute fields (optional)
-        if new_status in ("acknowledged", "dismissed"):
-            alarm.pop("muted_until", None)
-            alarm.pop("muted_at", None)
-
-        rewrite_jsonl(alarms)
-
-    print(f"{new_status.upper()} alarm #{index_1_based} (alarm_id={alarm.get('alarm_id')})")
-
-def command_loop():
-    print("\nCommands:")
-    print("  list           -> show ACTIVE alarms")
-    print("  list all       -> show all alarms")
-    print("  A-<n>          -> acknowledge/complete alarm #n (example: A-2)")
-    print("  exit           -> quit\n")
-
-    while True:
-        cmd = input("> ").strip()
-
-        if cmd.lower() == "exit":
-            break
-
-        if cmd.lower() == "list":
-            print_alarm_list(show_all=False)
-            continue
-
-        if cmd.lower() == "list all":
-            print_alarm_list(show_all=True)
-            continue
-
-        if cmd.upper().startswith("A-"):
-            try:
-                n = int(cmd.split("-", 1)[1])
-            except ValueError:
-                print("Invalid format. Use A-2, A-3, etc.")
-                continue
-            set_status(n, "acknowledged")
-            continue
-
-       
-
-        print("Unknown command. Try: list, list all, A-1, D-1, M-1 60, unmute-1, exit")
-
-# =========================
-# MQTT CALLBACKS
-# =========================
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("[Krake] Connected to broker")
-        client.subscribe(ALARM_TOPIC, qos=1)
-        print(f"[Krake] Subscribed to {ALARM_TOPIC}")
+    if POLICY == "SEVERITY":
+        active_items.sort(key=lambda x: severity_sort_key(x[1]))
     else:
-        print("[Krake] Connection failed, rc =", rc)
+        # POLICY0: arrival order
+        active_items.sort(key=lambda x: x[1].get("seq", 0))
+
+    # Build display list
+    view = []
+    for display_i, (master_idx, alarm) in enumerate(active_items, 1):
+        view.append((display_i, master_idx, alarm))
+    return view
 
 
-def on_message(client, userdata, msg):
-    try:
-        payload = json.loads(msg.payload.decode("utf-8"))
-    except json.JSONDecodeError:
-        print("[Krake] Invalid JSON received")
+def get_all_view():
+    """
+    Returns list of (display_index_1_based, master_idx, alarm_dict) ordered by POLICY.
+    """
+    with lock:
+        items = list(enumerate(alarms))  # (master_idx, alarm)
+
+    if POLICY == "SEVERITY":
+        items.sort(key=lambda x: severity_sort_key(x[1]))
+    else:
+        items.sort(key=lambda x: x[1].get("seq", 0))
+
+    view = []
+    for display_i, (master_idx, alarm) in enumerate(items, 1):
+        view.append((display_i, master_idx, alarm))
+    return view
+
+
+def print_view(view):
+    print("\n--- Alarms ---")
+    for display_i, _, a in view:
+        print(
+            f"{display_i}) [{a.get('status')}] "
+            f"sev={a.get('severity')} "
+            f"desc={a.get('description')} "
+            f"id={a.get('alarm_id')}"
+        )
+    print("-------------\n")
+
+
+def send_ack(alarm_id: str, status: str):
+    payload = {
+        "alarm_id": alarm_id,
+        "status": status,
+        "ack_at": utc_now()
+    }
+    client.publish(ACK_TOPIC, json.dumps(payload), qos=1)
+    print(f"[Krake] ACK sent → alarm_id={alarm_id} status={status}")
+
+
+def acknowledge(display_n: int):
+    """
+    POLICY0: allow acknowledging any active alarm number in the ACTIVE view
+    SEVERITY: must acknowledge the top alarm first => display_n must be 1
+    """
+    active_view = get_active_view()
+
+    if not active_view:
+        print("No active alarms")
         return
 
-    alarm_id = payload.get("alarm_id")
-    severity = payload.get("severity")
-    label = payload.get("label")
-    description = payload.get("description")
-    source = payload.get("source")
-    timestamp = payload.get("timestamp")
+    if POLICY == "SEVERITY" and display_n != 1:
+        print("Must acknowledge from the top of the list (A-1 first)")
+        return
 
-    log_entry = {
-        "alarm_id": alarm_id,
-        "severity": severity,
-        "label": label,
-        "description": description,
-        "source": source,
-        "topic": msg.topic,
-        "received_at": utc_now(),
-        "status": "active",
-    }
+    match = None
+    for display_i, master_idx, alarm in active_view:
+        if display_i == display_n:
+            match = (master_idx, alarm)
+            break
 
-    with alarms_lock:
-        alarms.append(log_entry)
-        alarm_number = len(alarms)
+    if not match:
+        print("Invalid alarm number for ACTIVE list")
+        return
+
+    master_idx, alarm = match
+    alarm_id = alarm.get("alarm_id")
+
+    with lock:
+        alarms[master_idx]["status"] = "acknowledged"
+
+    send_ack(alarm_id, "acknowledged")
+    print(f"[Krake] Alarm acknowledged → alarm_id={alarm_id}")
+
+
+def on_connect(_client, _userdata, _flags, rc):
+    print("[Krake] Connected to broker")
+    _client.subscribe(SUB_TOPIC, qos=1)
+    print(f"[Krake] Subscribed to {SUB_TOPIC}")
+
+    print("\nCommands:")
+    print(" list           -> show ACTIVE alarms (ordered by policy)")
+    print(" list all       -> show ALL alarms (ordered by policy)")
+    print(" A-<n>          -> acknowledge alarm #n (POLICY0: any, SEVERITY: only A-1)")
+    print(" exit\n")
+
+
+def on_message(_client, _userdata, msg):
+    alarm = json.loads(msg.payload.decode("utf-8"))
+
+    alarm_id = alarm.get("alarm_id")
+    severity = alarm.get("severity")
+    label = alarm.get("label")
+    source = alarm.get("source")
+
+    with lock:
+        seq = len(alarms) + 1
+        alarms.append({
+            "seq": seq,
+            "alarm_id": alarm_id,
+            "severity": severity,
+            "description": alarm.get("description"),
+            "timestamp": alarm.get("timestamp"),
+            "label": label,
+            "source": source,
+            "status": "active",
+            "received_at": utc_now()
+        })
 
     print(
         f"[Krake] Alarm received → "
-        f"id={alarm_id}, severity={severity}, label={label}, source={source}"
+        f"id={alarm_id}, "
+        f"severity={severity}, "
+        f"label={label}, "
+        f"source={source}"
     )
 
-    # Simulate hardware reaction
-    try:
-        sev_int = int(severity)
-    except (TypeError, ValueError):
-        sev_int = 0
-
-    if sev_int >= BEEP_LEVEL_THRESHOLD:
-        try_beep()
-
-    # Send ACK back to ADaM
-    ack_topic = payload.get("ack_topic", DEFAULT_ACK_TOPIC)
-    ack_payload = {
-        "alarm_id": alarm_id,
-        "status": "received",
-        "ack_at": utc_now(),
-    }
-
-    client.publish(ack_topic, json.dumps(ack_payload), qos=1)
-    print(f"[Krake] ACK sent → alarm_id={alarm_id}")
+    # Always ACK as "received" immediately (your requirement)
+    send_ack(alarm_id, "received")
 
 
-# =========================
-# MAIN
-# =========================
+def command_loop():
+    while True:
+        cmd = input("> ").strip()
+
+        if cmd == "list":
+            print_view(get_active_view())
+        elif cmd == "list all":
+            print_view(get_all_view())
+        elif cmd.upper().startswith("A-"):
+            try:
+                n = int(cmd.split("-", 1)[1])
+                acknowledge(n)
+            except ValueError:
+                print("Invalid command format. Use A-1, A-2, etc.")
+        elif cmd == "exit":
+            break
+        else:
+            print("Unknown command. Try: list, list all, A-1, exit")
+
 
 def main():
-    client = mqtt.Client(client_id="KrakeSimulator")
-    client.username_pw_set(USERNAME, PASSWORD)
+    global client, SUB_TOPIC, ACK_TOPIC, POLICY
 
+    config = load_config(CONFIG_PATH)
+    POLICY = config.get("policy", "POLICY0").upper()
+    ACK_TOPIC = config.get("ack_topic", "adam/acks")
+
+    annunciators = config.get("annunciators", [])
+    if not annunciators:
+        raise RuntimeError("No annunciators found in config")
+    SUB_TOPIC = annunciators[0]
+
+    print(f"[Krake] Policy: {POLICY}")
+    print(f"[Krake] SUB_TOPIC: {SUB_TOPIC}")
+    print(f"[Krake] ACK_TOPIC: {ACK_TOPIC}")
+
+    client = mqtt.Client(
+        client_id="KrakeSimulator",
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION1
+    )
+    client.username_pw_set(USERNAME, PASSWORD)
     client.on_connect = on_connect
     client.on_message = on_message
 
     print("[Krake] Connecting to broker...")
-    client.connect(BROKER, PORT, keepalive=60)
+    client.connect(BROKER, PORT)
+    client.loop_start()
 
-    client.loop_forever()
+    command_loop()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,10 @@
+{
+  "version": "ADaM.0.0.1",
+  "policy": "SEVERITY",
+  "alarm_topic": "adam/in/alarms",
+  "ack_topic": "adam/acks",
+  "annunciators": [
+    "adam/out/LEBANON-5",
+    "adam/out/PubInv-test273"
+  ]
+}
