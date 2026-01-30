@@ -1,10 +1,22 @@
 {
-  "version": "ADaM.0.0.1",
-  "policy": "SEVERITY",
+  "version": "ADaM.0.0.2",
+
+  "broker_host": "public.cloud.shiftr.io",
+  "broker_port": 1883,
+  "username": "public",
+  "password": "public",
+
+  "policy": "SEVERITY_PAUSE",
+  "severity_pause_seconds": 20,
+
   "alarm_topic": "adam/in/alarms",
   "ack_topic": "adam/acks",
+
   "annunciators": [
     "adam/out/LEBANON-5",
     "adam/out/PubInv-test273"
-  ]
+  ],
+
+  "log_file": "adam_server.log",
+  "tick_seconds": 0.5
 }
