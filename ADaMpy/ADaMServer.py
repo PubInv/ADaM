@@ -249,11 +249,13 @@ class ADaMServer:
         payload = msg.payload.decode("utf-8", errors="replace")
         if msg.topic == self.alarm_topic:
             self.handle_alarm(payload)
-        elif msg.topic == self.ack_topic:
+         elif msg.topic == self.ack_topic:
             self.handle_ack(payload)
 
     def handle_alarm(self, payload: str) -> None:
         try:
+            # Instead of expecting payload to be JSON, decode a GPAD_API string.
+            # str[0] == 'a' , lvl = int(str[1]), descr = str[2:82];
             data = json.loads(payload)
         except json.JSONDecodeError:
             self.log("[ADaM] RECEIVE ALARM invalid_json")
@@ -384,6 +386,7 @@ class ADaMServer:
 
         with self._lock:
             active = [a for a in self.alarms_by_id.values() if a.status == "active"]
+
 
         for topic in self.annunciators:
             with self._lock:

@@ -55,6 +55,7 @@ def main():
                 "state": "active",
             }
 
+            # create string from payload which is a GPAD_API formatted string instead.
             msg = json.dumps(payload)
             info = client.publish(topic, msg, qos=1)
 

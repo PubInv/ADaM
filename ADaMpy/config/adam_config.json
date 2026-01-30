@@ -12,7 +12,7 @@
   "alarm_topic": "adam/in/alarms",
   "ack_topic": "adam/acks",
 
-  "annunciators": [
+  "annunciators":
     "adam/out/LEBANON-5",
     "adam/out/PubInv-test273"
   ],
