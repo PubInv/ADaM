@@ -82,7 +82,7 @@ ADaM is an MQTT-based alarm router. Producers publish alarms to ADaMServer. ADaM
 # Setup (Windows PowerShell)
 
 ## 1) Clone repo and go to repo root
-git clone <YOUR_REPO_URL>
+git clone <REPO_URL>
 cd ADaM
 
 ## 2) Create and activate a virtual environment
