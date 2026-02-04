@@ -70,3 +70,143 @@ The search term "Intelligent Alarm System" does not appear to be exactly what we
 
 ["The intelligent alarm management system", Jun Liu, Khiang Wee Lim, Weing Khuen Ho, Kay Chen Tan, Rajagopalan Srinivasan, Arthur Tay. IEEE Software, 2003.](https://www.researchgate.net/profile/Rajagopalan-Srinivasan-3/publication/3247961_The_intelligent_alarm_management_system/links/5860c85008ae329d61fcb03a/The-intelligent-alarm-management-system.pdf)
 
+
+
+# ADaM Setup and Run Guide (Windows PowerShell)
+
+## What this project is
+ADaM is an MQTT-based alarm router. Producers publish alarms to ADaMServer. ADaMServer stores all unacknowledged alarms, chooses the next alarm using a Strategy policy (POLICY0 / SEVERITY / SEVERITY_PAUSE), and publishes the chosen alarm to Krake_Simulator. Krake_Simulator shows only the latest alarm and lets the user ACK it. ADaMServer logs all key actions for debugging and harm scoring.
+
+---
+
+# Setup (Windows PowerShell)
+
+## 1) Clone repo and go to repo root
+git clone <YOUR_REPO_URL>
+cd ADaM
+
+## 2) Create and activate a virtual environment
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+## 3) Install dependencies
+# If requirements.txt exists:
+pip install -r requirements.txt
+
+# If not, minimum:
+pip install paho-mqtt
+
+## 4) Set MQTT credentials locally (required)
+# Set these every time you open a new terminal (unless you make them permanent in your OS profile)
+$env:MQTT_USER="YOUR_USERNAME"
+$env:MQTT_PASS="YOUR_PASSWORD"
+
+# Verify:
+echo $env:MQTT_USER
+
+---
+
+# Run the system (3 terminals)
+
+Open THREE PowerShell terminals. In each terminal:
+cd <path-to-repo>\ADaM
+.\.venv\Scripts\Activate.ps1
+$env:MQTT_USER="YOUR_USERNAME"
+$env:MQTT_PASS="YOUR_PASSWORD"
+
+## Terminal 1: Start ADaMServer
+python .\ADaMServer.py
+
+Expected output includes:
+- Started policy=...
+- Subscribed alarm_topic=... ack_topic=...
+- Annunciators=[...]
+
+## Terminal 2: Start Krake Simulator
+python .\Krake_Simulator.py
+
+Krake commands:
+- ack  -> acknowledges the currently displayed alarm
+- exit -> quits the simulator
+
+## Terminal 3: Start a simulator (choose one)
+
+Random alarm generator:
+python .\simulators\alarm_generator.py
+
+Manual alarm test:
+python .\simulators\manual_alarm_test.py
+
+---
+
+# Policies (Strategy pattern)
+
+ADaMServer uses a Strategy pattern for alarm selection. Policy is configured in config/adam_config.json.
+
+POLICY0
+- Baseline/simple policy.
+
+SEVERITY
+- Highest severity first, ties broken by oldest.
+
+SEVERITY_PAUSE
+- Like SEVERITY, but enforces a minimum display window so alarms do not overwrite too quickly.
+- Controlled by pause_seconds in config.
+
+Example config snippet (config/adam_config.json):
+{
+  "policy": "SEVERITY_PAUSE",
+  "pause_seconds": 20.0
+}
+
+---
+
+# Logging
+
+ADaMServer writes a log file (example: adam_server.log) containing:
+- server startup/shutdown
+- RECEIVE ALARM
+- SEND ALARM
+- RECEIVE ACK
+
+This log is used for debugging and harm score analysis.
+
+---
+
+# Harm score from logs (optional)
+
+If harm_from_log.py exists, compute harm score over a range:
+python .\harm_from_log.py --log "adam_server.log" --from "2026-01-30 01:17:00" --to "2026-01-30 02:18:00" --mode SQUARED --ann "adam/out/LEBANON-5" --normalized_only true
+
+Important:
+- Use --ann (two dashes), NOT -ann.
+
+---
+
+# Common problems and fixes
+
+## 1) Credentials not set
+Symptoms: auth failures or no connection.
+Fix:
+$env:MQTT_USER="YOUR_USERNAME"
+$env:MQTT_PASS="YOUR_PASSWORD"
+
+## 2) Simulator can’t find config file
+Symptoms: FileNotFoundError: adam_config.json
+Fix:
+- Run from repo root, OR
+- Ensure simulator uses the correct relative path: config/adam_config.json
+
+## 3) Krake display scrolls / typing pushes the alarm off screen
+Cause: alarms print while input() is waiting.
+Fix options:
+- Re-render screen after message receive and re-print prompt, OR
+- Avoid printing while the user is typing (use a simple input loop + redraw).
+
+## 4) Git push rejected (remote has commits you don’t have)
+Safe fix:
+git pull --rebase origin main
+git push origin main
+
+If you truly want to overwrite remote history (dangerous, only do if team agrees):
+git push --force origin main

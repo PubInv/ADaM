@@ -249,7 +249,7 @@ class ADaMServer:
         payload = msg.payload.decode("utf-8", errors="replace")
         if msg.topic == self.alarm_topic:
             self.handle_alarm(payload)
-         elif msg.topic == self.ack_topic:
+        elif msg.topic == self.ack_topic:
             self.handle_ack(payload)
 
     def handle_alarm(self, payload: str) -> None:

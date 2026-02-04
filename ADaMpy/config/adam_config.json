@@ -13,7 +13,8 @@
   "ack_topic": "adam/acks",
 
   "annunciators":
-    "adam/out/LEBANON-5",
+  [
+      "adam/out/LEBANON-5",
     "adam/out/PubInv-test273"
   ],
 
