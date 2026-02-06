@@ -79,13 +79,31 @@ ADaMServer stores all unacknowledged alarms, chooses the next alarm using a Stra
 Krake_Simulator shows only the latest alarm and lets the user ACK it.
 ADaMServer logs all key actions for debugging and harm scoring.
 
+
 ---
 
 ## Setup (Windows PowerShell)
 
+
+### Use of Demo MQTT Broker vs. A Private MQTT Broker
+
+ADaM relies on the use of an MQTT broker. At present, we use a public broker, offered by "shiftr":
+whose mqtt url is: public.cloud.shiftr.io.
+
+The Shiftr visualizer page is useful and can be found here: (https://public.cloud.shiftr.io/.)[https://public.cloud.shiftr.io/.]
+
+(In Java, the broker may be reached via the connection string:
+> String BROKER_URL = "mqtt://public:public@public.cloud.shiftr.io";
+
+In an actual use case, an firm or enterprise would use a private broker.  For now, we are using this public MQTT broker, and you can as well.
+
+In this python code, the MQTT broker code is specified in the configuration file: adam_config.json.
+
+
+
 ### 1) Clone repo and go to repo root
 ```powershell
-git clone <REPO_URL>
+git clone https://github.com/PubInv/ADaM.git
 cd ADaM
 ```
 
@@ -107,8 +125,8 @@ pip install paho-mqtt
 ### 4) Set MQTT credentials locally (required)
 ```powershell
 # Set these every time you open a new terminal
-$env:MQTT_USER="YOUR_USERNAME"
-$env:MQTT_PASS="YOUR_PASSWORD"
+$env:MQTT_USER="public"
+$env:MQTT_PASS="public"
 
 # Verify:
 echo $env:MQTT_USER
