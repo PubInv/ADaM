@@ -145,8 +145,8 @@ In each terminal:
 ```powershell
 cd <path-to-repo>\ADaM
 .\.venv\Scripts\Activate.ps1
-$env:MQTT_USER="YOUR_USERNAME"
-$env:MQTT_PASS="YOUR_PASSWORD"
+$env:MQTT_USER="public"
+$env:MQTT_PASS="public"
 ```
 
 ### Terminal 1: Start ADaMServer
