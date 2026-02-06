@@ -13,22 +13,9 @@ STOP_RE = re.compile(
 )
 
 
-def parse_log_ts(ts: str) -> float:
-    return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S,%f").timestamp()
-
-
-def parse_user_ts(ts: str) -> float:
-    return datetime.strptime(ts, "%Y-%m-%d %H:%M:%S").timestamp()
-
-
-def weight(sev: int, mode: str) -> float:
-    s = max(0, min(5, int(sev)))
-    mode = (mode or "SQUARED").upper()
-    if mode == "LINEAR":
-        return float(s)
-    if mode == "EXP":
-        return float(2 ** s)
-    return float(s * s)  # SQUARED
+def parse_ts(ts: str) -> float:
+    dt = datetime.strptime(ts, "%Y-%m-%d %H:%M:%S,%f")
+    return dt.timestamp()
 
 
 def clamp01(x: float) -> float:
@@ -39,126 +26,68 @@ def clamp01(x: float) -> float:
     return x
 
 
+def harm_weight(sev: int, mode: str) -> float:
+    s = max(0, min(int(sev), 5))
+    if mode == "linear":
+        return float(s)
+    if mode == "square":
+        return float(s * s)
+    if mode == "exp":
+        return float(2 ** s) - 1.0
+    return float(s)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--log", default="adam_server.log")
-    ap.add_argument("--from", dest="from_ts", required=True, help='Example: "2026-01-27 19:30:00"')
-    ap.add_argument("--to", dest="to_ts", required=True, help='Example: "2026-01-27 20:00:46"')
-    ap.add_argument("--mode", default="SQUARED", choices=["LINEAR", "SQUARED", "EXP"])
-    ap.add_argument("--ann", default=None, help="Optional: only score one annunciator topic")
-    ap.add_argument("--close_on_stop", default="true", choices=["true", "false"])
-    ap.add_argument("--normalized_only", default="true", choices=["true", "false"],
-                    help="true prints only 0-1 scores, false prints raw + normalized")
+    ap.add_argument("log", help="path to adam_server.log")
+    ap.add_argument("--mode", choices=["linear", "square", "exp"], default="linear")
+    ap.add_argument("--window_s", type=float, default=60.0, help="harm window in seconds")
+    ap.add_argument("--normalize", action="store_true", help="normalize by max harm per annunciator")
     args = ap.parse_args()
 
-    start = parse_user_ts(args.from_ts)
-    end = parse_user_ts(args.to_ts)
-    if end <= start:
-        raise ValueError("--to must be after --from")
-
-    close_on_stop = args.close_on_stop.lower() == "true"
-    normalized_only = args.normalized_only.lower() == "true"
-
-    duration = end - start
-    max_harm_per_ann = weight(5, args.mode) * duration  # worst-case for a single screen
-
-    # annunciator -> (start_ts, sev, alarm_id)
-    current = {}
-
-    total = 0.0
-    by_ann = {}
-
-    def close_annunciator(ann: str, close_ts: float):
-        nonlocal total
-        if ann not in current:
-            return
-        st, sev, aid = current[ann]
-        st = max(st, start)
-        if close_ts > st:
-            inc = weight(sev, args.mode) * (close_ts - st)
-            total += inc
-            by_ann[ann] = by_ann.get(ann, 0.0) + inc
-        current.pop(ann, None)
+    events = []
+    stopped_at = None
 
     with open(args.log, "r", encoding="utf-8", errors="replace") as f:
-        in_range_seen = False
-
         for line in f:
-            line = line.strip()
-
-            # STOP handling
-            sm = STOP_RE.match(line)
-            if sm and close_on_stop:
-                ts = parse_log_ts(sm.group("ts"))
-                if ts < start:
-                    current.clear()
-                    continue
-                if ts > end:
-                    ts = end
-                for a in list(current.keys()):
-                    close_annunciator(a, ts)
-                current.clear()
+            m = SEND_RE.search(line)
+            if m:
+                ts = parse_ts(m.group("ts"))
+                ann = m.group("ann")
+                aid = m.group("id")
+                sev = int(m.group("sev"))
+                events.append((ts, ann, aid, sev))
                 continue
 
-            # SEND handling
-            m = SEND_RE.match(line)
-            if not m:
-                continue
+            m2 = STOP_RE.search(line)
+            if m2:
+                stopped_at = parse_ts(m2.group("ts"))
 
-            ts = parse_log_ts(m.group("ts"))
-            ann = m.group("ann")
+    if not events:
+        print("No SEND ALARM events found")
+        return
 
-            if args.ann and ann != args.ann:
-                continue
+    end_ts = stopped_at if stopped_at is not None else events[-1][0]
+    start_ts = end_ts - float(args.window_s)
 
-            sev = int(m.group("sev"))
-            aid = m.group("id")
+    by_ann = {}
+    total = 0.0
 
-            if ts < start:
-                current[ann] = (ts, sev, aid)
-                continue
-
-            if ts > end:
-                if in_range_seen:
-                    break
-                continue
-
-            in_range_seen = True
-
-            if ann in current:
-                close_annunciator(ann, ts)
-
-            current[ann] = (ts, sev, aid)
-
-    for a in list(current.keys()):
-        close_annunciator(a, end)
+    for ts, ann, _aid, sev in events:
+        if ts < start_ts or ts > end_ts:
+            continue
+        w = harm_weight(sev, args.mode)
+        by_ann[ann] = by_ann.get(ann, 0.0) + w
+        total += w
 
     if not by_ann:
-        print("No SEND ALARM lines matched. Check --log path or log format.")
+        print("No events in selected window")
         return
 
-    print(f"Range: {args.from_ts} -> {args.to_ts}")
-    print(f"Mode: {args.mode}")
-    print(f"Close on stop: {close_on_stop}")
-    print(f"Duration seconds: {duration:.3f}")
+    max_harm_per_ann = max(by_ann.values()) if by_ann else 0.0
+    total_norm = clamp01(total / (max_harm_per_ann * max(1, len(by_ann)))) if max_harm_per_ann > 0 else 0.0
 
-    # If user wants one annunciator, output only that (single harm score)
-    if args.ann:
-        raw = by_ann.get(args.ann, 0.0)
-        norm = clamp01(raw / max_harm_per_ann) if max_harm_per_ann > 0 else 0.0
-        if normalized_only:
-            print(f"HARM(0-1) annunciator={args.ann}: {norm:.3f}")
-        else:
-            print(f"RAW harm annunciator={args.ann}: {raw:.3f}")
-            print(f"HARM(0-1) annunciator={args.ann}: {norm:.3f}")
-        return
-
-    # Multi-annunciator mode
-    # Total normalized uses max_total = max_per_ann * number_of annunciators
-    max_total = max_harm_per_ann * len(by_ann)
-    total_norm = clamp01(total / max_total) if max_total > 0 else 0.0
-
-    if normalized_only:
+    if args.normalize:
         print(f"TOTAL HARM(0-1): {total_norm:.3f}")
         for ann, raw in sorted(by_ann.items(), key=lambda x: -x[1]):
             norm = clamp01(raw / max_harm_per_ann) if max_harm_per_ann > 0 else 0.0

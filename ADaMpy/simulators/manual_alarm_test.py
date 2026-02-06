@@ -1,14 +1,19 @@
-import json
-import uuid
-from datetime import datetime, timezone
+from ADaMpy.gpad_api import (
+    encode_gpad_alarm,
+    decode_gpad_alarm,
+    encode_gpad_ack,
+    decode_gpad_ack,
+)
 import paho.mqtt.client as mqtt
+
 
 BROKER = "public.cloud.shiftr.io"
 PORT = 1883
 TOPIC = "adam/in/alarms"
 
+
 client = mqtt.Client(
-    client_id="ManualAlarmTest",
+    client_id="manual_alarm_test",
     callback_api_version=mqtt.CallbackAPIVersion.VERSION1
 )
 client.username_pw_set("public", "public")
@@ -16,26 +21,10 @@ client.connect(BROKER, PORT)
 client.loop_start()
 
 while True:
-    desc = input("Alarm description (max 80 chars): ").strip()
+    desc = input("Alarm description: ")
+    sev = int(input("Severity (1-5): "))
 
-    # limit to 80 chars
-    if len(desc) > 80:
-        print("Description too long (max 80 characters).")
-        continue
+    msg = encode_gpad_alarm(sev, desc)
 
-    # severity input
-    try:
-        sev = int(input("Severity (1-5): "))
-        if sev < 1 or sev > 5:
-            print("Severity must be between 1 and 5.")
-            continue
-    except ValueError:
-        print("Enter a valid number 1-5.")
-        continue
-
-    
-    payload_text = f"{sev}-{desc}"
-
-    client.publish(TOPIC, payload_text, qos=1)
-
-    print(f"Alarm sent: {payload_text}\n")
+    client.publish(TOPIC, msg, qos=1)
+    print("Alarm sent\n")
