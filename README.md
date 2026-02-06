@@ -99,6 +99,9 @@ In an actual use case, an firm or enterprise would use a private broker.  For no
 
 In this python code, the MQTT broker code is specified in the configuration file: adam_config.json.
 
+If you use a private broker, you would of course not use the username and password "public", but
+would change them to something you kept secret to your group, and would have to change the mqtt url.
+
 
 
 ### 1) Clone repo and go to repo root
