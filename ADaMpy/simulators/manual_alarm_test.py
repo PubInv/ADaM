@@ -16,16 +16,26 @@ client.connect(BROKER, PORT)
 client.loop_start()
 
 while True:
-    desc = input("Alarm description: ")
-    sev = int(input("Severity (1-5): "))
+    desc = input("Alarm description (max 80 chars): ").strip()
 
-    payload = {
-        "alarm_id": str(uuid.uuid4()),
-        "severity": sev,
-        "description": desc,
-        "source": "manual-test",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+    # limit to 80 chars
+    if len(desc) > 80:
+        print("Description too long (max 80 characters).")
+        continue
 
-    client.publish(TOPIC, json.dumps(payload), qos=1)
-    print("Alarm sent\n")
+    # severity input
+    try:
+        sev = int(input("Severity (1-5): "))
+        if sev < 1 or sev > 5:
+            print("Severity must be between 1 and 5.")
+            continue
+    except ValueError:
+        print("Enter a valid number 1-5.")
+        continue
+
+    
+    payload_text = f"{sev}-{desc}"
+
+    client.publish(TOPIC, payload_text, qos=1)
+
+    print(f"Alarm sent: {payload_text}\n")

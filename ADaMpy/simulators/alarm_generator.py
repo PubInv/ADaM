@@ -45,25 +45,19 @@ def main():
     try:
         while True:
             level = random.choice(LEVELS)
-            payload = {
-                "alarm_id": str(uuid.uuid4()),
-                "severity": level,
-                "label": ["", "Informational", "Problem", "Warning", "Critical", "Panic"][level],
-                "description": "Simulated alarm",
-                "source": "alarm-generator",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "state": "active",
-            }
 
-            # create string from payload which is a GPAD_API formatted string instead.
-            msg = json.dumps(payload)
+            description = "Simulated alarm"
+            description = description[:80] 
+
+            msg = f"{level}-{description}"
+
             info = client.publish(topic, msg, qos=1)
 
-            if info.rc != 0:
+            if info.rc !=0:
                 print(f"[Generator] Publish failed rc={info.rc}")
             else:
-                print(f"[Generator] Sent alarm id={payload['alarm_id'][:8]} sev={level}")
-
+                print(f"[Generator] Sent alarm sev={level} msg = '{description}'")
+            
             time.sleep(5)
 
     except KeyboardInterrupt:
