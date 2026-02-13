@@ -12,6 +12,8 @@
   "alarm_topic": "adam/in/alarms",
   "ack_topic": "adam/acks",
 
+  "shelve_seconds" : 300,
+
   "annunciators":
   [
       "adam/out/LEBANON-5",

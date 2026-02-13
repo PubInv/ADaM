@@ -24,9 +24,13 @@ def classify(payload: str) -> str:
     if s.startswith("{"):
         return "JSON"
     if s.startswith("a") and len(s) >= 2 and s[1].isdigit():
-        return "GPAD_ALARM"
-    if s.startswith("k|") or s.startswith("k,") or s.startswith("k "):
-        return "GPAD_ACK"
+        return "GPAP_ALARM"
+    if s.startswith("o") and len(s) >= 2 and s[1] in "acds":
+        return "GPAP_RESPONSE"
+    if s in ("m", "u"):
+        return "MUTE_TOGGLE"
+    if s.startswith("k|"):
+        return "LEGACY_ACK"
     return "UNKNOWN"
 
 
@@ -43,7 +47,6 @@ def on_message(client, userdata, msg):
     preview = raw.replace("\r", "\\r").replace("\n", "\\n")
     if len(preview) > 200:
         preview = preview[:200] + "..."
-
     print(f"[{now()}] {kind} topic={msg.topic} payload={preview}")
 
 
@@ -59,7 +62,7 @@ def main():
     ack_topic = cfg.get("ack_topic", "adam/acks")
     annunciators = list(cfg.get("annunciators", []))
 
-    topics = [alarm_topic, ack_topic] + annunciators
+    topics = [alarm_topic, ack_topic, f"{ack_topic}/#"] + annunciators
 
     client = mqtt.Client(client_id="sniff_mqtt")
     client.username_pw_set(user, pw)
