@@ -73,9 +73,14 @@ python --version
 ## 3) Install dependencies
 ```bash
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install paho-mqtt
+```
+How to check if it worked
+```
+python -m pip show paho-mqtt
 ```
 
+If installed, it prints package details(name, version, location)
 ---
 
 ## 4) Configure ADaM
