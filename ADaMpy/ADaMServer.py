@@ -355,23 +355,68 @@ class ADaMServer:
         self.log(f"[ADaM] SEND ALARM annunciator={annunciator_topic} msg_id={alarm.msg_id} sev={alarm.severity}")
 
     def _evaluate_for_topic(self, topic: str, now_ts: float) -> None:
+        candidate = None
+        override_from_msg_id = None
+
         with self._lock:
             st = self.ann_state[topic]
 
+            cur = None
             if st.current_msg_id:
                 cur = self.alarms_by_msg_id.get(st.current_msg_id)
-                if cur and cur.status in OPEN_STATUSES:
+
+                # If current alarm is gone or no longer open, clear it
+                if not (cur and cur.status in OPEN_STATUSES):
+                    st.current_msg_id = None
+                    cur = None
+
+            open_alarms = self._open_alarms()
+            if not open_alarms:
+                return
+
+            # Case 1: Nothing currently displayed -> send if pause allows
+            if cur is None:
+                if not self._can_send_now(st, now_ts):
                     return
-                st.current_msg_id = None
 
-            if not self._can_send_now(st, now_ts):
-                return
+                candidate = self._pick_next(open_alarms)
+                if not candidate:
+                    return
 
-            candidate = self._pick_next(self._open_alarms())
-            if not candidate:
-                return
+            # Case 2: Something is currently displayed
+            else:
+                # For POLICY0 / SEVERITY (no pause preemption), keep current until operator action
+                if self.policy_name != "SEVERITY_PAUSE":
+                    return
 
-        self._send_to_annunciator(topic, candidate, now_ts)
+                # Still inside pause window, do not preempt yet
+                if not self._can_send_now(st, now_ts):
+                    return
+
+                best = self._pick_next(open_alarms)
+                if not best:
+                    return
+
+                # If current is already the best open alarm, no override needed
+                if best.msg_id == cur.msg_id:
+                    return
+
+                # Only override if the new candidate has strictly higher priority
+                # Lower sort key means higher priority in current policy implementation
+                if self._policy_sort_key(best) < self._policy_sort_key(cur):
+                    candidate = best
+                    override_from_msg_id = cur.msg_id
+                else:
+                    return
+
+        if candidate is not None:
+            if override_from_msg_id:
+                self.log(
+                    f"[ADaM] OVERRIDE annunciator={topic} "
+                    f"from_msg_id={override_from_msg_id} to_msg_id={candidate.msg_id} "
+                    f"after_pause={self.pause_seconds}s"
+                )
+            self._send_to_annunciator(topic, candidate, now_ts)
 
     def evaluate_and_send_all(self) -> None:
         now_ts = time.time()
