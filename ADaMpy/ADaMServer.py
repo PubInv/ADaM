@@ -31,6 +31,12 @@ from ADaMpy.gpad_api import (
     decode_gpap_response,
 )
 
+from ADaMpy.alarm_db import (
+    load_alarm_database,
+    extract_alarm_type_key,
+    strip_alarm_type_marker,
+)
+
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -54,6 +60,32 @@ def load_config() -> dict:
     raise FileNotFoundError("Could not find adam_config.json. Expected at ADaMpy/config/adam_config.json.")
 
 
+def resolve_alarm_db_path(cfg: dict) -> str:
+    """Resolve alarm_types.json location.
+
+    Config supports:
+      alarm_db_file: "alarm_types.json" (relative to ADaMpy/config) or absolute path
+    """
+    configured = str(cfg.get("alarm_db_file", "alarm_types.json")).strip() or "alarm_types.json"
+    if os.path.isabs(configured):
+        return configured
+
+    adam_py_dir = os.path.abspath(os.path.dirname(__file__))
+    candidates = [
+        os.path.join(adam_py_dir, "config", configured),
+        os.path.join(adam_py_dir, configured),
+        os.path.join(os.path.dirname(adam_py_dir), "config", configured),
+        os.path.join(os.path.dirname(adam_py_dir), configured),
+        os.path.join(os.getcwd(), "ADaMpy", "config", configured),
+        os.path.join(os.getcwd(), "config", configured),
+        os.path.join(os.getcwd(), configured),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return candidates[0]
+
+
 OPEN_STATUSES = {"active", "acknowledged"}
 
 
@@ -74,6 +106,9 @@ class AlarmRecord:
     source: str
     received_at: str
     seq: int
+    alarm_type: str | None = None
+    alarm_number: str = "000"
+    raw_text: str = ""
     status: str = "active"
 
     shelved_until_ts: float | None = None
@@ -113,6 +148,10 @@ class ADaMServer:
         self.shelve_seconds = float(cfg.get("shelve_seconds", cfg.get("shelve_minutes", 5) * 60.0))
         self.tick_seconds = float(cfg.get("tick_seconds", 0.5))
 
+        # Alarm Type database (Version 1)
+        self.alarm_db_path = resolve_alarm_db_path(cfg)
+        self.alarm_db = load_alarm_database(self.alarm_db_path)
+
         self._lock = threading.Lock()
         self._stop = threading.Event()
 
@@ -150,6 +189,14 @@ class ADaMServer:
     def log(self, msg: str) -> None:
         self.logger.info(msg)
 
+    def warn(self, msg: str) -> None:
+        self.logger.warning(msg)
+
+    def _format_alarm_for_display(self, alarm: AlarmRecord) -> str:
+        prefix = f"[{alarm.alarm_number}]"
+        body = (alarm.text or "").strip() or self.alarm_db.unknown_default_text
+        return f"{prefix} {body}".strip()
+
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
         client.subscribe(self.alarm_topic, qos=1)
         client.subscribe(f"{self.ack_topic_base}/#", qos=1)
@@ -159,6 +206,7 @@ class ADaMServer:
         self.log(f"[ADaM] Ack topic base={self.ack_topic_base} (subscribing to {self.ack_topic_base}/#)")
         self.log(f"[ADaM] Out topics={self.out_topics}")
         self.log(f"[ADaM] Policy={self.policy_name} pause={self.pause_seconds}s shelve={self.shelve_seconds}s")
+        self.log(f"[ADaM] AlarmDatabase={self.alarm_db.source_path} entries={len(self.alarm_db.alarm_types)}")
 
     def on_message(self, _client, _userdata, msg):
         payload = msg.payload.decode("utf-8", errors="replace")
@@ -176,7 +224,7 @@ class ADaMServer:
 
     def _annunciator_from_topic(self, topic: str) -> str | None:
         if topic.startswith(self.ack_topic_base + "/"):
-            return topic[len(self.ack_topic_base) + 1 :]
+            return topic[len(self.ack_topic_base) + 1:]
         return None
 
     def _record_event(self, alarm: AlarmRecord, annunciator: str, action: str, note: str = "") -> None:
@@ -208,11 +256,25 @@ class ADaMServer:
         try:
             a = decode_gpap_alarm(raw)
             severity = int(a.severity)
-            text = a.text
+            incoming_text = a.text
             msg_id = (a.msg_id or self._new_msg_id()).upper()
         except Exception:
             self.log("[ADaM] RECEIVE ALARM invalid_payload (expected GPAP)")
             return
+
+        # Version 1: alarm type must be explicit in the text: TYPE:<KEY>|...
+        alarm_type = extract_alarm_type_key(incoming_text)
+        alarm_def = self.alarm_db.get(alarm_type)
+
+        if alarm_def:
+            alarm_number = alarm_def.alarm_number
+            resolved_text = alarm_def.default_text
+        else:
+            alarm_number = self.alarm_db.unknown_alarm_number
+            resolved_text = strip_alarm_type_marker(incoming_text) or self.alarm_db.unknown_default_text
+            self.warn(
+                f"[ADaM] ALARM OUTSIDE DATABASE type={alarm_type or 'NONE'} msg_id={msg_id} raw_text={incoming_text[:120]}"
+            )
 
         with self._lock:
             self.seq_counter += 1
@@ -220,15 +282,20 @@ class ADaMServer:
                 alarm_id=str(uuid.uuid4()),
                 msg_id=msg_id,
                 severity=severity,
-                text=text,
+                text=resolved_text,
                 source="gpap",
                 received_at=utc_now_iso(),
                 seq=self.seq_counter,
+                alarm_type=alarm_type,
+                alarm_number=alarm_number,
+                raw_text=incoming_text,
                 status="active",
             )
             self.alarms_by_msg_id[msg_id] = rec
 
-        self.log(f"[ADaM] RECEIVE ALARM msg_id={msg_id} sev={severity} text={text[:80]}")
+        self.log(
+            f"[ADaM] RECEIVE ALARM msg_id={msg_id} type={alarm_type or 'NONE'} num={alarm_number} sev={severity} text={resolved_text[:80]}"
+        )
         self.evaluate_and_send_all()
 
     def handle_operator(self, payload: str, topic: str) -> None:
@@ -258,6 +325,7 @@ class ADaMServer:
             return
 
         msg_id = self._resolve_msg_id(msg_id_hint, annunciator)
+
         if not msg_id:
             self.log(f"[ADaM] RECEIVE OP unknown_msg_id annunciator={annunciator} hint={msg_id_hint or ''}")
             return
@@ -290,7 +358,9 @@ class ADaMServer:
                 self.log(f"[ADaM] OP invalid_action={action}")
                 return
 
-            self.log(f"[ADaM] OP action={action} annunciator={annunciator} msg_id={msg_id} status={alarm.status}")
+            self.log(
+                f"[ADaM] OP action={action} annunciator={annunciator} msg_id={msg_id} status={alarm.status}"
+            )
 
             st = self.ann_state[annunciator]
             if st.current_msg_id == msg_id and action in ("c", "d", "s"):
@@ -344,7 +414,12 @@ class ADaMServer:
         return age >= float(self.pause_seconds)
 
     def _send_to_annunciator(self, annunciator_topic: str, alarm: AlarmRecord, now_ts: float) -> None:
-        payload = encode_gpap_alarm(alarm.severity, alarm.text, msg_id=alarm.msg_id, max_len=80)
+        payload = encode_gpap_alarm(
+            alarm.severity,
+            self._format_alarm_for_display(alarm),
+            msg_id=alarm.msg_id,
+            max_len=80,
+        )
         st = self.ann_state[annunciator_topic]
 
         st.current_msg_id = alarm.msg_id
@@ -352,7 +427,10 @@ class ADaMServer:
         alarm.sent_to.add(annunciator_topic)
 
         self.client.publish(annunciator_topic, payload, qos=1)
-        self.log(f"[ADaM] SEND ALARM annunciator={annunciator_topic} msg_id={alarm.msg_id} sev={alarm.severity}")
+        self.log(
+            f"[ADaM] SEND ALARM annunciator={annunciator_topic} msg_id={alarm.msg_id} "
+            f"type={alarm.alarm_type or 'NONE'} num={alarm.alarm_number} sev={alarm.severity}"
+        )
 
     def _evaluate_for_topic(self, topic: str, now_ts: float) -> None:
         candidate = None
@@ -365,7 +443,6 @@ class ADaMServer:
             if st.current_msg_id:
                 cur = self.alarms_by_msg_id.get(st.current_msg_id)
 
-                # If current alarm is gone or no longer open, clear it
                 if not (cur and cur.status in OPEN_STATUSES):
                     st.current_msg_id = None
                     cur = None
@@ -374,35 +451,22 @@ class ADaMServer:
             if not open_alarms:
                 return
 
-            # Case 1: Nothing currently displayed -> send if pause allows
             if cur is None:
                 if not self._can_send_now(st, now_ts):
                     return
-
                 candidate = self._pick_next(open_alarms)
                 if not candidate:
                     return
-
-            # Case 2: Something is currently displayed
             else:
-                # For POLICY0 / SEVERITY (no pause preemption), keep current until operator action
                 if self.policy_name != "SEVERITY_PAUSE":
                     return
-
-                # Still inside pause window, do not preempt yet
                 if not self._can_send_now(st, now_ts):
                     return
-
                 best = self._pick_next(open_alarms)
                 if not best:
                     return
-
-                # If current is already the best open alarm, no override needed
                 if best.msg_id == cur.msg_id:
                     return
-
-                # Only override if the new candidate has strictly higher priority
-                # Lower sort key means higher priority in current policy implementation
                 if self._policy_sort_key(best) < self._policy_sort_key(cur):
                     candidate = best
                     override_from_msg_id = cur.msg_id
@@ -412,9 +476,7 @@ class ADaMServer:
         if candidate is not None:
             if override_from_msg_id:
                 self.log(
-                    f"[ADaM] OVERRIDE annunciator={topic} "
-                    f"from_msg_id={override_from_msg_id} to_msg_id={candidate.msg_id} "
-                    f"after_pause={self.pause_seconds}s"
+                    f"[ADaM] OVERRIDE annunciator={topic} from_msg_id={override_from_msg_id} to_msg_id={candidate.msg_id}"
                 )
             self._send_to_annunciator(topic, candidate, now_ts)
 
@@ -468,7 +530,7 @@ class ADaMServer:
             print("(none)")
         else:
             for a in rows[:50]:
-                print(f"{a.seq:04d} msg_id={a.msg_id} sev={a.severity} status={a.status} text={a.text[:60]}")
+                print(f"{a.seq:04d} msg_id={a.msg_id} type={a.alarm_type or 'NONE'} num={a.alarm_number} sev={a.severity} status={a.status} text={a.text[:60]}")
         print("-------------\n")
 
     def print_current(self) -> None:
@@ -484,8 +546,7 @@ class ADaMServer:
                     if self.policy_name == "SEVERITY_PAUSE":
                         pause_left = f"{max(0.0, float(self.pause_seconds) - age_val):.1f}s"
                 print(
-                    f"{topic} -> current={st.current_msg_id or '-'} "
-                    f"age={age} pause_left={pause_left} muted={st.muted}"
+                    f"{topic} -> current={st.current_msg_id or '-'} age={age} pause_left={pause_left} muted={st.muted}"
                 )
             print("--------------------------------\n")
 

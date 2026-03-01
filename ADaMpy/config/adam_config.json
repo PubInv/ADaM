@@ -1,5 +1,5 @@
 {
-  "version": "ADaM.0.0.2",
+  "version": "ADaM.0.0.3",
 
   "broker_host": "public.cloud.shiftr.io",
   "broker_port": 1883,
@@ -12,13 +12,15 @@
   "alarm_topic": "adam/in/alarms",
   "ack_topic": "adam/acks",
 
-  "shelve_seconds" : 300,
+  "shelve_seconds": 300,
 
   "annunciators":
   [
-      "adam/out/LEBANON-5",
+    "adam/out/LEBANON-5",
     "adam/out/PubInv-test273"
   ],
+
+  "alarm_db_file": "alarm_types.json",
 
   "log_file": "adam_server.log",
   "tick_seconds": 0.5
