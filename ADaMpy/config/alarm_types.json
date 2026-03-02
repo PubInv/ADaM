@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "unknown_alarm_number": "000",
+  "unknown_default_text": "Unknown alarm type",
+  "alarm_types": {
+    "FIRE": {
+      "alarm_number": "007",
+      "default_text": "Fire alarm detected"
+    },
+    "SMOKE_DETECTED": {
+      "alarm_number": "008",
+      "default_text": "Smoke detected"
+    },
+    "GAS_LEAK": {
+      "alarm_number": "009",
+      "default_text": "Gas leak detected"
+    },
+    "WATER_LEAK": {
+      "alarm_number": "010",
+      "default_text": "Water leak detected"
+    },
+
+    "POWER_LOSS": {
+      "alarm_number": "021",
+      "default_text": "Power loss detected"
+    },
+    "UPS_ON_BATTERY": {
+      "alarm_number": "022",
+      "default_text": "UPS running on battery"
+    },
+    "LOW_BATTERY": {
+      "alarm_number": "023",
+      "default_text": "Low battery detected"
+    },
+    "GENERATOR_FAULT": {
+      "alarm_number": "024",
+      "default_text": "Generator fault detected"
+    },
+
+    "COMM_LOSS": {
+      "alarm_number": "030",
+      "default_text": "Communication loss detected"
+    },
+    "NETWORK_DOWN": {
+      "alarm_number": "031",
+      "default_text": "Network connectivity lost"
+    },
+    "NETWORK_LATENCY_HIGH": {
+      "alarm_number": "032",
+      "default_text": "Network latency is high"
+    },
+
+    "HIGH_TEMPERATURE": {
+      "alarm_number": "034",
+      "default_text": "High temperature detected"
+    },
+    "LOW_TEMPERATURE": {
+      "alarm_number": "035",
+      "default_text": "Low temperature detected"
+    },
+
+    "HIGH_PRESSURE": {
+      "alarm_number": "041",
+      "default_text": "High pressure detected"
+    },
+    "LOW_PRESSURE": {
+      "alarm_number": "042",
+      "default_text": "Low pressure detected"
+    },
+
+    "OVERCURRENT": {
+      "alarm_number": "050",
+      "default_text": "Overcurrent condition detected"
+    },
+    "UNDERVOLTAGE": {
+      "alarm_number": "051",
+      "default_text": "Undervoltage condition detected"
+    },
+    "OVERVOLTAGE": {
+      "alarm_number": "052",
+      "default_text": "Overvoltage condition detected"
+    },
+
+    "SENSOR_FAILURE": {
+      "alarm_number": "055",
+      "default_text": "Sensor failure detected"
+    },
+    "SENSOR_OUT_OF_RANGE": {
+      "alarm_number": "056",
+      "default_text": "Sensor reading out of range"
+    },
+
+    "DOOR_OPEN": {
+      "alarm_number": "060",
+      "default_text": "Door open detected"
+    },
+    "INTRUSION": {
+      "alarm_number": "061",
+      "default_text": "Intrusion detected"
+    },
+    "EMERGENCY_STOP": {
+      "alarm_number": "062",
+      "default_text": "Emergency stop activated"
+    },
+
+    "MAINTENANCE_REQUIRED": {
+      "alarm_number": "070",
+      "default_text": "Maintenance required"
+    },
+    "SYSTEM_RESTARTED": {
+      "alarm_number": "071",
+      "default_text": "System restarted"
+    },
+    "CPU_OVERLOAD": {
+      "alarm_number": "072",
+      "default_text": "CPU overload detected"
+    },
+    "DISK_FULL": {
+      "alarm_number": "073",
+      "default_text": "Disk space critically low"
+    },
+    "MEMORY_PRESSURE": {
+      "alarm_number": "074",
+      "default_text": "Memory pressure detected"
+    },
+    "FAN_FAILURE": {
+      "alarm_number": "075",
+      "default_text": "Fan failure detected"
+    },
+    "PUMP_FAILURE": {
+      "alarm_number": "076",
+      "default_text": "Pump failure detected"
+    }
+  }
+}
