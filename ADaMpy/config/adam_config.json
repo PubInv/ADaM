@@ -3,8 +3,8 @@
 
   "broker_host": "public.cloud.shiftr.io",
   "broker_port": 1883,
-  "username": "",
-  "password": "",
+  "username": "public",
+  "password": "public",
 
   "policy": "SEVERITY_PAUSE",
   "severity_pause_seconds": 20,
