@@ -19,6 +19,9 @@ from ADaMpy.alarm_db import (
 )
 
 
+def new_msg_id() -> str:
+    return uuid.uuid4().hex[:5].upper()
+
 app = Flask(__name__)
 
 ADAMPY_DIR = Path(__file__).resolve().parent
@@ -27,8 +30,8 @@ CONFIG_FILE = ADAMPY_DIR / "config" / "adam_config.json"
 ALARM_TYPES_FILE = ADAMPY_DIR / "config" / "alarm_types.json"
 
 # Later take this from the configuation file
-app.config['MQTT_BROKER_URL'] = 'public.cloud.shiftr.io'
-app.config['MQTT_BROKER_PORT'] = 1883
+broker = 'public.cloud.shiftr.io'
+port = 1883
 username = 'public'
 password = 'public'
 
@@ -37,6 +40,15 @@ kwargs = {"client_id": f"ADaMServer-{uuid.uuid4().hex[:6]}"}
 client = mqtt.Client(**kwargs)
 if username and password:
     client.username_pw_set(username, password)
+
+def on_log(client, userdata, paho_log_level, messages):
+    if paho_log_level == mqtt.LogLevel.MQTT_LOG_ERR:
+        print(message)
+
+client.on_log = on_log
+
+client.connect(broker, port)
+client.loop_start()
 
 #client.on_connect = self.on_connect
 #client.on_message = self.on_message
@@ -90,19 +102,11 @@ def manual_alarm():
         alarm_content = request.form.get('alarm_content')
         app.logger.info('You submitted an alarm.')
         app.logger.info(alarm_content)
-        message="Hello, World!"
-        topic="adam/out/PubInv-test27"
-
-        annunciator_topic = "adam/out/PubInv-test273-ALM"
-        payload = encode_gpap_alarm(
-#            alarm.severity,
-#            self._format_alarm_for_display(alarm),
-#            msg_id=alarm.msg_id,
-3,
-"spud",
-"ABCDE367",
-            max_len=80,
-        )
+        annunciator_topic = "adam/in/alarms"
+        sev = 3
+        mid = new_msg_id()
+        # alarm_content should be trimmed in length?
+        payload = encode_gpap_alarm(sev, alarm_content, msg_id=mid, max_len=80)
         client.publish(annunciator_topic, payload, qos=1)
         app.logger.info("published!")
 

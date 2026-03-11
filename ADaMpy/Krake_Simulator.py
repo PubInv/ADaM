@@ -286,6 +286,8 @@ def main():
         annunciators = list(cfg.get("annunciators", []))
         if not annunciators:
             raise RuntimeError("config annunciators[] is empty")
+        # TODO: Make this configurable from commandline so that
+        # annunciators can be chosen from config file
         annunciator_topic = annunciators[0]
 
     sim = KrakeSimulator(cfg, annunciator_topic)
