@@ -1,6 +1,23 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, request, jsonify
 from pathlib import Path
 from datetime import datetime
+import logging
+import paho.mqtt.client as mqtt
+import uuid
+
+
+from ADaMpy.gpad_api import (
+    encode_gpap_alarm,
+    decode_gpap_alarm,
+    decode_gpap_response,
+)
+
+from ADaMpy.alarm_db import (
+    load_alarm_database,
+    extract_alarm_type_key,
+    strip_alarm_type_marker,
+)
+
 
 app = Flask(__name__)
 
@@ -8,6 +25,21 @@ ADAMPY_DIR = Path(__file__).resolve().parent
 LOG_FILE = ADAMPY_DIR / "adam_server.log"
 CONFIG_FILE = ADAMPY_DIR / "config" / "adam_config.json"
 ALARM_TYPES_FILE = ADAMPY_DIR / "config" / "alarm_types.json"
+
+# Later take this from the configuation file
+app.config['MQTT_BROKER_URL'] = 'public.cloud.shiftr.io'
+app.config['MQTT_BROKER_PORT'] = 1883
+username = 'public'
+password = 'public'
+
+kwargs = {"client_id": f"ADaMServer-{uuid.uuid4().hex[:6]}"}
+
+client = mqtt.Client(**kwargs)
+if username and password:
+    client.username_pw_set(username, password)
+
+#client.on_connect = self.on_connect
+#client.on_message = self.on_message
 
 
 def read_last_lines(path: Path, limit: int = 30):
@@ -52,8 +84,28 @@ def logs():
     return render_template("logs.html", logs=logs, log_file=str(LOG_FILE))
 
 
-@app.route("/manual-alarm")
+@app.route("/manual-alarm", methods=['GET', 'POST'])
 def manual_alarm():
+    if request.method == 'POST':
+        alarm_content = request.form.get('alarm_content')
+        app.logger.info('You submitted an alarm.')
+        app.logger.info(alarm_content)
+        message="Hello, World!"
+        topic="adam/out/PubInv-test27"
+
+        annunciator_topic = "adam/out/PubInv-test273-ALM"
+        payload = encode_gpap_alarm(
+#            alarm.severity,
+#            self._format_alarm_for_display(alarm),
+#            msg_id=alarm.msg_id,
+3,
+"spud",
+"ABCDE367",
+            max_len=80,
+        )
+        client.publish(annunciator_topic, payload, qos=1)
+        app.logger.info("published!")
+
     return render_template("manual_alarm.html")
 
 
