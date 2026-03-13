@@ -1,101 +1,119 @@
-# This file is responsible for loading and validating the alarm database from a JSON file.
-# It defines the expected structure of the alarm database and provides a function to load it into a Python 
-# dictionary for use by the rest of the application.
-
-# in alarm_database.json, we expect an object with a "version" string and an "alarm_types" array. Each entry in
-# "alarm_types" must be an object with the following fields:
-# - alarm_key (string): a unique identifier for the alarm type
-# - alarm_number (string): a human-readable code for the alarm
-# - alarm_message (string): a template message for the alarm
-# - severity (int): the severity level of the alarm (e.g. 1-5)
-# - audio_file (string): the filename of the audio to play for this alarm
-# - actions (array of strings): a list of actions that can be taken for this alarm
-
-# alarm key is the unique internal identifier for an alarm type. 
-# Example:
-# door_open
-#water_leak
-
-# the way to choose an alarm key is to, 1 - use lowercase. 2 - use underscores instead of spaces. 
-#                                       3 - make it descriptive but concise. 4 - avoid special characters.
-
-# To add a new alarm type safely, you would:
-#Open alarm_database.json
-#Copy an existing alarm entry.
-#Paste it at the end of the alarm_types array.
-
-#Modify:
-#alarm_key → must be unique
-#alarm_number → must be unique
-#Update text, severity, audio, actions
-
-#Validate:
-#No duplicate alarm_key
-#No duplicate alarm_number
-#Severity is 1–5
-#actions is an array of strings
-#Save the file.
-
+from __future__ import annotations
 
 import json
 import os
-from typing import Any
+import re
+from dataclasses import dataclass
 
-REQUIRED_FIELDS = [
-    "alarm_key",
-    "alarm_number",
-    "alarm_message",
-    "severity",
-    "audio_file",
-    "actions",
-]
 
-def default_db_path() -> str:
-    # Path relative to this file: ADaMpy/config/AlarmDatabase.json
-    base = os.path.abspath(os.path.dirname(__file__))
-    return os.path.join(base, "config", "alarm_database.json")
+# Version 1 contract:
+#   TYPE:<ALARM_TYPE_KEY>|<optional text>
+_TYPE_RE = re.compile(r"^\s*TYPE:(?P<key>[A-Za-z0-9_-]+)\|(?P<rest>.*)$")
 
-def load_alarm_database(path: str | None = None) -> dict[str, dict[str, Any]]:
-    if path is None:
-        path = default_db_path()
 
-    with open(path, "r", encoding="utf-8") as f:
+def normalize_alarm_type_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    key = str(value).strip().upper().replace("-", "_").replace(" ", "_")
+    return key or None
+
+
+def extract_alarm_type_key(text: str | None) -> str | None:
+    raw = (text or "").strip()
+    if not raw:
+        return None
+    m = _TYPE_RE.match(raw)
+    if not m:
+        return None
+    return normalize_alarm_type_key(m.group("key"))
+
+
+def strip_alarm_type_marker(text: str | None) -> str:
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    m = _TYPE_RE.match(raw)
+    if not m:
+        return raw
+    return (m.group("rest") or "").strip()
+
+
+@dataclass(frozen=True)
+class AlarmTypeDefinition:
+    alarm_type: str
+    alarm_number: str
+    default_text: str
+
+
+class AlarmDatabase:
+    def __init__(
+        self,
+        alarm_types: dict[str, AlarmTypeDefinition],
+        source_path: str,
+        unknown_alarm_number: str = "000",
+        unknown_default_text: str = "Unknown alarm type",
+    ):
+        self.alarm_types = alarm_types
+        self.source_path = source_path
+        self.unknown_alarm_number = str(unknown_alarm_number or "000").strip() or "000"
+        self.unknown_default_text = (
+            str(unknown_default_text or "Unknown alarm type").strip() or "Unknown alarm type"
+        )
+
+    def get(self, alarm_type: str | None) -> AlarmTypeDefinition | None:
+        key = normalize_alarm_type_key(alarm_type)
+        if not key:
+            return None
+        return self.alarm_types.get(key)
+
+
+def load_alarm_database(path: str) -> AlarmDatabase:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Alarm type database not found: {path}")
+
+    with open(path, "r", encoding="utf-8-sig") as f:
         data = json.load(f)
 
-    alarm_types = data.get("alarm_types")
-    if not isinstance(alarm_types, list):
-        raise ValueError("alarm_database.json must contain an 'alarm_types' array")
+    raw_types = data.get("alarm_types")
+    if not isinstance(raw_types, dict) or not raw_types:
+        raise ValueError("alarm_types.json must contain a non-empty object at key 'alarm_types'.")
 
-    lookup: dict[str, dict[str, Any]] = {}
+    unknown_alarm_number = data.get("unknown_alarm_number", "000")
+    unknown_default_text = data.get("unknown_default_text", "Unknown alarm type")
 
-    for i, entry in enumerate(alarm_types):
-        if not isinstance(entry, dict):
-            raise ValueError(f"alarm_types[{i}] must be an object")
+    alarm_types: dict[str, AlarmTypeDefinition] = {}
+    used_numbers: dict[str, str] = {}
 
-        for field in REQUIRED_FIELDS:
-            if field not in entry:
-                raise ValueError(f"alarm_types[{i}] missing required field '{field}'")
+    for raw_key, raw_def in raw_types.items():
+        if not isinstance(raw_def, dict):
+            raise ValueError(f"alarm_types[{raw_key!r}] must be an object.")
 
-    if not isinstance(entry["alarm_key"], str):
-        raise ValueError(f"alarm_types[{i}].alarm_key must be a string")
-    if not isinstance(entry["alarm_number"], str):
-        raise ValueError(f"alarm_types[{i}].alarm_number must be a string")
-    if not isinstance(entry["alarm_message"], str):
-        raise ValueError(f"alarm_types[{i}].alarm_message must be a string")
-    if not isinstance(entry["severity"], int):
-        raise ValueError(f"alarm_types[{i}].severity must be an int")
-    if not isinstance(entry["audio_file"], str):
-        raise ValueError(f"alarm_types[{i}].audio_file must be a string")
-    if not isinstance(entry["actions"], list) or not all(isinstance(a, str) for a in entry["actions"]):
-        raise ValueError(f"alarm_types[{i}].actions must be a list of strings")
+        alarm_type = normalize_alarm_type_key(str(raw_key))
+        if not alarm_type:
+            raise ValueError(f"Invalid alarm type key: {raw_key!r}")
 
+        alarm_number = str(raw_def.get("alarm_number", "")).strip()
+        default_text = str(raw_def.get("default_text", "")).strip()
 
-    key = entry["alarm_key"]
-    if key in lookup:
-        raise ValueError(f"Duplicate alarm_key '{key}'")
+        if not alarm_number:
+            raise ValueError(f"alarm_type={alarm_type} missing required field alarm_number.")
+        if not default_text:
+            raise ValueError(f"alarm_type={alarm_type} missing required field default_text.")
 
-    lookup[key] = entry
+        if alarm_number in used_numbers:
+            other = used_numbers[alarm_number]
+            raise ValueError(f"Duplicate alarm_number={alarm_number} for {alarm_type} and {other}.")
+        used_numbers[alarm_number] = alarm_type
 
-    return lookup
+        alarm_types[alarm_type] = AlarmTypeDefinition(
+            alarm_type=alarm_type,
+            alarm_number=alarm_number,
+            default_text=default_text,
+        )
 
-
+    return AlarmDatabase(
+        alarm_types=alarm_types,
+        source_path=os.path.abspath(path),
+        unknown_alarm_number=unknown_alarm_number,
+        unknown_default_text=unknown_default_text,
+    )

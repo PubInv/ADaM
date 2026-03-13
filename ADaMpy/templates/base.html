@@ -7,12 +7,12 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <nav>
-    <a href="/">Home</a>
-    <a href="/logs">Logs</a>
-    <a href="/manual-alarm">Manual Alarm</a>
-    <a href="/krakes">Krakes</a>
-    <a href="/config">Config</a>
+  <nav class="topnav">
+    <a href="{{ url_for('home') }}">Home</a>
+    <a href="{{ url_for('logs') }}">Logs</a>
+    <a href="{{ url_for('manual_alarm') }}">Manual Alarm</a>
+    <a href="{{ url_for('krakes') }}">Krakes</a>
+    <a href="{{ url_for('config_page') }}">Config</a>
   </nav>
 
   <main class="container">

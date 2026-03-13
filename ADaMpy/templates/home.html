@@ -2,14 +2,31 @@
 
 {% block content %}
 <h1>ADaM Web UI</h1>
-<p class="muted">Initial Flask proof of life for the ADaM backend.</p>
+<p class="muted">Browser-based wrapper around the existing ADaM backend tools.</p>
 
-<div class="card">
-  <h2>System Status</h2>
-  <p><strong>Current time:</strong> {{ now }}</p>
-  <p><strong>Log file:</strong> {{ "FOUND" if log_exists else "NOT FOUND" }}</p>
-  <p><strong>adam_config.json:</strong> {{ "FOUND" if config_exists else "NOT FOUND" }}</p>
-  <p><strong>alarm_types.json:</strong> {{ "FOUND" if alarm_types_exists else "NOT FOUND" }}</p>
+<div class="grid two">
+  <div class="card">
+    <h2>System Status</h2>
+    <p><strong>Current time:</strong> {{ now }}</p>
+    <p><strong>Log file:</strong> {{ "FOUND" if log_exists else "NOT FOUND" }}</p>
+    <p><strong>adam_config.json:</strong> {{ "FOUND" if config_exists else "NOT FOUND" }}</p>
+    <p><strong>alarm_types.json:</strong> {{ "FOUND" if alarm_types_exists else "NOT FOUND" }}</p>
+    <p><strong>Web Krakes:</strong> {{ web_krake_count }}</p>
+    <p><strong>Hardware Krakes:</strong> {{ hardware_krake_count }}</p>
+  </div>
+
+  <div class="card">
+    <h2>Configured Annunciators</h2>
+    {% if annunciators %}
+      <ul>
+        {% for topic in annunciators %}
+          <li>{{ topic }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No annunciators configured.</p>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card">
@@ -18,7 +35,7 @@
     <pre>{% for line in recent_logs %}{{ line }}
 {% endfor %}</pre>
   {% else %}
-    <p>No logs found yet. Start ADaMServer and refresh this page.</p>
+    <p>No logs found yet.</p>
   {% endif %}
 </div>
 {% endblock %}

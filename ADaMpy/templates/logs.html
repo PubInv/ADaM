@@ -1,10 +1,27 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>ADaM Logs</h1>
-<p class="muted">Reading from: {{ log_file }}</p>
+<h1>Logs</h1>
+<p class="muted">Reading from {{ log_file }}</p>
 
 <div class="card">
+  <h2>Graphical View</h2>
+  {% if events %}
+    <div class="event-list">
+      {% for event in events %}
+        <div class="event-card {{ event.severity_class }}">
+          <div class="event-label">{{ event.label }}</div>
+          <div class="event-raw">{{ event.raw }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No log events found.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Raw Text View</h2>
   {% if logs %}
     <pre>{% for line in logs %}{{ line }}
 {% endfor %}</pre>

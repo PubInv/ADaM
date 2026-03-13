@@ -1,11 +1,131 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Alarm Configuration</h1>
+<h1>Configuration</h1>
+
+{% if message %}
+  <div class="alert success">{{ message }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert error">{{ error }}</div>
+{% endif %}
+
+<div class="grid two">
+  <div class="card">
+    <h2>ADaM Config</h2>
+    <p class="muted">{{ config_file }}</p>
+
+    <form method="post" class="form-grid">
+      <input type="hidden" name="action" value="save_cfg">
+
+      <label>
+        Broker Host
+        <input type="text" name="broker_host" value="{{ cfg.get('broker_host', '') }}">
+      </label>
+
+      <label>
+        Broker Port
+        <input type="number" name="broker_port" value="{{ cfg.get('broker_port', 1883) }}">
+      </label>
+
+      <label>
+        Username
+        <input type="text" name="username" value="{{ cfg.get('username', '') }}">
+      </label>
+
+      <label>
+        Password
+        <input type="text" name="password" value="{{ cfg.get('password', '') }}">
+      </label>
+
+      <label>
+        Alarm Topic
+        <input type="text" name="alarm_topic" value="{{ cfg.get('alarm_topic', 'adam/in/alarms') }}">
+      </label>
+
+      <label>
+        Ack Topic Base
+        <input type="text" name="ack_topic" value="{{ cfg.get('ack_topic', 'adam/acks') }}">
+      </label>
+
+      <label class="span-2">
+        Annunciators, one per line
+        <textarea name="annunciators" rows="6">{% for item in cfg.get('annunciators', []) %}{{ item }}
+{% endfor %}</textarea>
+      </label>
+
+      <div class="span-2">
+        <button type="submit">Save Config</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Add or Update Alarm Type</h2>
+    <p class="muted">{{ alarm_types_file }}</p>
+
+    <form method="post" class="form-grid">
+      <input type="hidden" name="action" value="save_alarm_type">
+
+      <label>
+        Alarm Key
+        <input type="text" name="alarm_key" placeholder="Example: HIGH_TEMP">
+      </label>
+
+      <label>
+        Severity
+        <input type="number" name="alarm_severity" min="0" max="5" value="3">
+      </label>
+
+      <label class="span-2">
+        Default Text
+        <input type="text" name="alarm_default_text" placeholder="Default alarm text">
+      </label>
+
+      <label>
+        Alarm Number
+        <input type="text" name="alarm_number" placeholder="Example: 007">
+      </label>
+
+      <label>
+        Audio File
+        <input type="text" name="audio_file" placeholder="Example: alarm_007.wav">
+      </label>
+
+      <div class="span-2">
+        <button type="submit">Save Alarm Type</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="card">
-  <p><strong>ADaM Config:</strong> {{ config_file }}</p>
-  <p><strong>Alarm Types:</strong> {{ alarm_types_file }}</p>
-  <p>This page will later allow viewing and editing alarm-related configuration.</p>
+  <h2>Alarm Database</h2>
+  {% if alarm_types %}
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Severity</th>
+          <th>Alarm Number</th>
+          <th>Default Text</th>
+          <th>Audio File</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, item in alarm_types %}
+          <tr>
+            <td>{{ key }}</td>
+            <td>{{ item.get('severity', '') }}</td>
+            <td>{{ item.get('alarm_number', '') }}</td>
+            <td>{{ item.get('default_text', '') }}</td>
+            <td>{{ item.get('audio_file', '') }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No alarm types found.</p>
+  {% endif %}
 </div>
 {% endblock %}

@@ -3,11 +3,126 @@
 {% block content %}
 <h1>Krake Management</h1>
 
+<div class="grid two">
+  <div class="card">
+    <h2>Spawn Web-Simulated Krake</h2>
+    <form method="post" action="{{ url_for('spawn_krake') }}" class="form-grid">
+      <label>
+        Name
+        <input type="text" name="name" placeholder="Example: Web Krake 1">
+      </label>
+
+      <label>
+        Annunciator Topic
+        <select name="annunciator_topic">
+          {% for topic in annunciators %}
+            <option value="{{ topic }}">{{ topic }}</option>
+          {% endfor %}
+          {% if not annunciators %}
+            <option value="adam/out/annunciator">adam/out/annunciator</option>
+          {% endif %}
+        </select>
+      </label>
+
+      <div class="span-2">
+        <button type="submit">Spawn Web Krake</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Register Hardware Krake</h2>
+    <form method="post" action="{{ url_for('register_hardware_krake') }}" class="form-grid">
+      <label>
+        Name
+        <input type="text" name="name" placeholder="Example: Hallway Device">
+      </label>
+
+      <label>
+        MAC Address
+        <input type="text" name="mac_address" placeholder="AA:BB:CC:DD:EE:FF">
+      </label>
+
+      <label class="span-2">
+        MQTT Topic
+        <input type="text" name="mqtt_topic" placeholder="adam/device/krake1">
+      </label>
+
+      <div class="span-2">
+        <button type="submit">Register Hardware Krake</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="card">
-  <p>This page will later support:</p>
-  <ul>
-    <li>Spawning simulated Krakes</li>
-    <li>Registering hardware Krakes using MAC address or MQTT topic</li>
-  </ul>
+  <h2>Web-Simulated Krakes</h2>
+  {% if web_krakes %}
+    <div class="krake-list">
+      {% for k in web_krakes %}
+        <div class="krake-card {{ 'muted-state' if k.muted else '' }}">
+          <div class="krake-header">
+            <h3>{{ k.name }}</h3>
+            <span class="badge">{{ k.krake_id }}</span>
+          </div>
+
+          <p><strong>Annunciator:</strong> {{ k.annunciator_topic }}</p>
+          <p><strong>Ack Topic:</strong> {{ k.ack_topic }}</p>
+          <p><strong>Status:</strong> {{ 'MUTED' if k.muted else 'UNMUTED' }}</p>
+          <p><strong>Last Event:</strong> {{ k.last_event }}</p>
+          <p><strong>Updated:</strong> {{ k.last_updated }}</p>
+          <p><strong>Hold Remaining:</strong> {{ k.hold_remaining }}s</p>
+
+          <div class="alarm-box {{ 'sev-' ~ k.current_sev if k.current_sev is not none else 'sev-unknown' }}">
+            <p><strong>Current Msg ID:</strong> {{ k.current_msg_id or 'None' }}</p>
+            <p><strong>Current Severity:</strong> {{ k.current_sev if k.current_sev is not none else 'None' }}</p>
+            <p><strong>Current Text:</strong> {{ k.current_text or 'No active alarm' }}</p>
+            {% if k.buffered_alarm %}
+              <p><strong>Buffered:</strong> {{ k.buffered_alarm }}</p>
+            {% endif %}
+          </div>
+
+          <div class="action-row">
+            {% for action, label in [('a','Acknowledge'), ('c','Complete'), ('d','Dismiss'), ('s','Shelve'), ('m','Mute'), ('u','Unmute')] %}
+              <form method="post" action="{{ url_for('krake_action', krake_id=k.krake_id) }}">
+                <input type="hidden" name="action" value="{{ action }}">
+                <button type="submit">{{ label }}</button>
+              </form>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p>No web-simulated Krakes yet.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Registered Hardware Krakes</h2>
+  {% if hardware_krakes %}
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>MAC Address</th>
+          <th>MQTT Topic</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in hardware_krakes %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.mac_address }}</td>
+            <td>{{ item.mqtt_topic }}</td>
+            <td>{{ item.created_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No hardware Krakes registered yet.</p>
+  {% endif %}
 </div>
 {% endblock %}

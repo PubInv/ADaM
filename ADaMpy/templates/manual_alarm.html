@@ -3,20 +3,56 @@
 {% block content %}
 <h1>Manual Alarm Generator</h1>
 
-<div class="card">
-  <p>This is the placeholder page for web-based alarm generation.</p>
-  <p>Next step is to connect this page to the same backend logic used by <code>simulators/manual_alarm_test.py</code>.</p>
-</div>
+{% if message %}
+  <div class="alert success">{{ message }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert error">{{ error }}</div>
+{% endif %}
 
 <div class="card">
-  <form  method="POST">
-  <p>
-    Content:
-  <input type="text" name="alarm_content" required> Default Content</input>
-  </p>
-  <p><button type"submit">Activate Alarm</button></p>
+  <form method="post" class="form-grid">
+    <label>
+      Alarm Type
+      <select name="alarm_type">
+        <option value="">Untyped alarm</option>
+        {% for key in known_keys %}
+          <option value="{{ key }}">{{ key }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      Severity
+      <select name="severity">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3" selected>3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </label>
+
+    <label class="span-2">
+      MQTT Topic
+      <input type="text" name="topic" value="{{ default_topic }}">
+    </label>
+
+    <label class="span-2">
+      Detail Text
+      <input type="text" name="detail" placeholder="Optional detail text">
+    </label>
+
+    <div class="span-2">
+      <button type="submit">Send Alarm</button>
+    </div>
   </form>
 </div>
 
-
+<div class="card">
+  <h2>How it works</h2>
+  <p>If you choose an alarm type, the text is sent as <code>TYPE:&lt;ALARM_TYPE&gt;|&lt;detail&gt;</code>.</p>
+  <p>If you leave alarm type blank, it sends an untyped alarm using the detail text.</p>
+</div>
 {% endblock %}
