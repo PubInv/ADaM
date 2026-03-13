@@ -14,7 +14,7 @@ def load_cfg() -> dict:
     with open(CFG_FILE, "r", encoding="utf-8-sig") as f:
         return json.load(f)
 
-
+# TODO: Move this to a shared library!
 def new_msg_id() -> str:
     return uuid.uuid4().hex[:5].upper()
 

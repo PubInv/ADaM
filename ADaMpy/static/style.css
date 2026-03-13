@@ -1,0 +1,45 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background: #f4f6f8;
+  color: #222;
+}
+
+nav {
+  background: #1f2937;
+  padding: 14px 20px;
+}
+
+nav a {
+  color: white;
+  text-decoration: none;
+  margin-right: 18px;
+  font-weight: 600;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 28px auto;
+  padding: 0 16px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+pre {
+  background: #111827;
+  color: #e5e7eb;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.muted {
+  color: #666;
+}

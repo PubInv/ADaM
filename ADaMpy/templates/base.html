@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADaM Web UI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/logs">Logs</a>
+    <a href="/manual-alarm">Manual Alarm</a>
+    <a href="/krakes">Krakes</a>
+    <a href="/config">Config</a>
+  </nav>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

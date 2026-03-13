@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Manual Alarm Generator</h1>
+
+<div class="card">
+  <p>This is the placeholder page for web-based alarm generation.</p>
+  <p>Next step is to connect this page to the same backend logic used by <code>simulators/manual_alarm_test.py</code>.</p>
+</div>
+
+<div class="card">
+  <form  method="POST">
+  <p>
+    Content:
+  <input type="text" name="alarm_content" required> Default Content</input>
+  </p>
+  <p><button type"submit">Activate Alarm</button></p>
+  </form>
+</div>
+
+
+{% endblock %}

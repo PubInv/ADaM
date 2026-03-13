@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>ADaM Logs</h1>
+<p class="muted">Reading from: {{ log_file }}</p>
+
+<div class="card">
+  {% if logs %}
+    <pre>{% for line in logs %}{{ line }}
+{% endfor %}</pre>
+  {% else %}
+    <p>No logs available.</p>
+  {% endif %}
+</div>
+{% endblock %}
