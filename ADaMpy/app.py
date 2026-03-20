@@ -7,6 +7,7 @@ import json
 import time
 import threading
 import uuid
+import re
 
 import paho.mqtt.client as mqtt
 
@@ -410,38 +411,147 @@ def severity_class(sev) -> str:
     return "sev-0"
 
 
+def parse_log_timestamp(line: str) -> datetime | None:
+    web_match = re.match(r"^\[WEB\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\]", line)
+    if web_match:
+        try:
+            return datetime.strptime(web_match.group(1), "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+
+    std_match = re.match(
+        r"^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})(?:,(\d{1,6}))?",
+        line
+    )
+    if std_match:
+        base = std_match.group(1)
+        fraction = std_match.group(2)
+        try:
+            if fraction:
+                fraction = (fraction + "000000")[:6]
+                return datetime.strptime(f"{base},{fraction}", "%Y-%m-%d %H:%M:%S,%f")
+            return datetime.strptime(base, "%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return None
+
+    return None
+
+
+def extract_line_severity(line: str) -> int | None:
+    match = re.search(r"\bsev\s*=\s*(\d)\b", line, flags=re.IGNORECASE)
+    if match:
+        try:
+            return int(match.group(1))
+        except ValueError:
+            return None
+    return None
+
+
+def extract_line_msg_id(line: str) -> str | None:
+    patterns = [
+        r"\bmsg_id\s*=\s*([A-Za-z0-9\-]+)",
+        r"\bid\s*=\s*([A-Za-z0-9\-]+)",
+        r"\balarm_id\s*=\s*([A-Za-z0-9_\-:/]+)",
+        r"\bto_msg_id\s*=\s*([A-Za-z0-9\-]+)",
+        r"\bfrom_msg_id\s*=\s*([A-Za-z0-9\-]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, line, flags=re.IGNORECASE)
+        if match:
+            value = (match.group(1) or "").strip()
+            return value or None
+    return None
+
+
+def classify_log_event(line: str) -> tuple[str, str, int | None, str]:
+    upper = line.upper()
+    severity = extract_line_severity(line)
+
+    if upper.startswith("[WEB "):
+        if "SPAWNED WEB KRAKE" in upper:
+            return "krake", "Web Krake Spawned", severity, severity_class(severity)
+        if "[KRAKE " in upper:
+            return "web_ack", "Web Krake Ack Publish", severity, severity_class(severity)
+        if "PUBLISHED TO " in upper:
+            return "web_publish", "Web Publish", severity, severity_class(severity)
+        if "SUBSCRIBED TO TOPIC" in upper:
+            return "web_subscribe", "Web Subscribe", severity, severity_class(severity)
+        if "MQTT CONNECTED" in upper:
+            return "connect", "Web MQTT Connected", severity, severity_class(severity)
+        return "web", "Web Event", severity, severity_class(severity)
+
+    if " ALARM OUTSIDE DATABASE " in upper or upper.startswith("WARNING "):
+        sev = severity if severity is not None else 4
+        return "warning", "Warning", sev, severity_class(sev)
+
+    if "MQTT ERROR" in upper or " ERROR " in upper:
+        sev = severity if severity is not None else 5
+        return "error", "Error", sev, severity_class(sev)
+
+    if "OVERRIDE " in upper:
+        return "override", "Override", severity, severity_class(severity)
+
+    if "UNSHELVE " in upper:
+        return "unshelve", "Unshelve", severity, severity_class(severity)
+
+    if "MUTE_CHANGE" in upper:
+        return "mute", "Mute Change", severity, severity_class(severity)
+
+    if "RECEIVE ACK " in upper:
+        return "ack", "Ack Received", severity, severity_class(severity)
+
+    if "OP ACTION=" in upper:
+        if "STATUS=COMPLETED" in upper:
+            return "operator", "Operator Complete", severity, severity_class(severity)
+        if "STATUS=ACKNOWLEDGED" in upper:
+            return "operator", "Operator Acknowledge", severity, severity_class(severity)
+        if "STATUS=SHELVED" in upper:
+            return "operator", "Operator Shelve", severity, severity_class(severity)
+        if "STATUS=ACTIVE" in upper:
+            return "operator", "Operator Active", severity, severity_class(severity)
+        return "operator", "Operator Action", severity, severity_class(severity)
+
+    if "RECEIVE ALARM " in upper:
+        label = f"Alarm Received Sev {severity}" if severity is not None else "Alarm Received"
+        return "alarm_received", label, severity, severity_class(severity)
+
+    if "SEND ALARM " in upper:
+        label = f"Alarm Sent Sev {severity}" if severity is not None else "Alarm Sent"
+        return "alarm_sent", label, severity, severity_class(severity)
+
+    if "CONNECTED RC=" in upper or "CONNECT RC=" in upper:
+        return "connect", "Connected", severity, severity_class(severity)
+
+    if "SUBSCRIBED ALARM_TOPIC" in upper or "ACK TOPIC BASE=" in upper or "ALARM TOPIC=" in upper:
+        return "connect", "Subscription Config", severity, severity_class(severity)
+
+    if "OUT TOPICS=" in upper or "ANNUNCIATORS" in upper or "BROKER=" in upper or "POLICY=" in upper or "TICK=" in upper:
+        return "config", "Config", severity, severity_class(severity)
+
+    if upper.rstrip().endswith("STOPPED"):
+        return "lifecycle", "Stopped", severity, severity_class(severity)
+
+    return "other", "Log", severity, severity_class(severity)
+
+
 def build_log_events(lines: list[str]) -> list[dict]:
     events = []
-    for line in lines:
-        event = {
+    for index, line in enumerate(lines):
+        timestamp = parse_log_timestamp(line)
+        kind, label, severity, sev_class = classify_log_event(line)
+        msg_id = extract_line_msg_id(line)
+
+        events.append({
             "raw": line,
-            "kind": "text",
-            "severity": None,
-            "severity_class": "sev-unknown",
-            "label": "Log",
-        }
-
-        upper = line.upper()
-        if "SEV=" in upper:
-            try:
-                part = upper.split("SEV=")[1]
-                sev = int(part[0])
-                event["severity"] = sev
-                event["severity_class"] = severity_class(sev)
-                event["label"] = f"Severity {sev}"
-            except Exception:
-                pass
-
-        if "PUBLISHED TO" in upper:
-            event["kind"] = "publish"
-            event["label"] = "Publish"
-
-        if "MQTT ERROR" in upper:
-            event["kind"] = "error"
-            event["label"] = "MQTT Error"
-            event["severity_class"] = "sev-5"
-
-        events.append(event)
+            "kind": kind,
+            "severity": severity,
+            "severity_class": sev_class,
+            "label": label,
+            "timestamp": timestamp.strftime("%Y-%m-%d %H:%M:%S") if timestamp else None,
+            "timestamp_iso": timestamp.isoformat() if timestamp else None,
+            "event_index": index + 1,
+            "msg_id": msg_id,
+        })
     return events
 
 
@@ -488,13 +598,29 @@ def health():
 
 @app.route("/logs")
 def logs():
-    lines = read_last_lines(LOG_FILE, 150)
+    lines = read_last_lines(LOG_FILE, 250)
     events = build_log_events(lines)
+    timeline_events = [event for event in events if event.get("timestamp_iso")]
+
+    summary = {
+        "total": len(events),
+        "timestamped": len(timeline_events),
+        "received": sum(1 for event in events if event["kind"] == "alarm_received"),
+        "sent": sum(1 for event in events if event["kind"] == "alarm_sent"),
+        "operator": sum(1 for event in events if event["kind"] == "operator"),
+        "acks": sum(1 for event in events if event["kind"] in {"ack", "web_ack"}),
+        "warnings": sum(1 for event in events if event["kind"] == "warning"),
+        "errors": sum(1 for event in events if event["kind"] == "error"),
+        "overrides": sum(1 for event in events if event["kind"] == "override"),
+    }
+
     return render_template(
         "logs.html",
         log_file=str(LOG_FILE),
         logs=lines,
         events=events,
+        timeline_events=timeline_events,
+        summary=summary,
     )
 
 
@@ -694,6 +820,13 @@ def api_krakes():
     with APP_LOCK:
         items = [k.to_dict() for k in WEB_KRAKES.values()]
     return jsonify(items)
+
+
+@app.route("/api/log-events")
+def api_log_events():
+    lines = read_last_lines(LOG_FILE, 250)
+    events = build_log_events(lines)
+    return jsonify(events)
 
 
 init_state()

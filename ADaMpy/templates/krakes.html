@@ -45,7 +45,7 @@
 
       <label class="span-2">
         MQTT Topic
-        <input type="text" name="mqtt_topic" placeholder="adam/device/krake1">
+        <input type="text" name="mqtt_topic" placeholder="adam/out/hardware-krake">
       </label>
 
       <div class="span-2">
@@ -56,9 +56,13 @@
 </div>
 
 <div class="card">
-  <h2>Web-Simulated Krakes</h2>
-  {% if web_krakes %}
-    <div class="krake-list">
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap">
+    <h2 style="margin: 0">Web-Simulated Krakes</h2>
+    <div id="krake-refresh-status" class="muted">Auto refresh every 3s</div>
+  </div>
+
+  <div id="krake-list-root" class="krake-list">
+    {% if web_krakes %}
       {% for k in web_krakes %}
         <div class="krake-card {{ 'muted-state' if k.muted else '' }}">
           <div class="krake-header">
@@ -92,10 +96,10 @@
           </div>
         </div>
       {% endfor %}
-    </div>
-  {% else %}
-    <p>No web-simulated Krakes yet.</p>
-  {% endif %}
+    {% else %}
+      <p id="no-krakes-message">No web-simulated Krakes yet.</p>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card">
@@ -125,4 +129,125 @@
     <p>No hardware Krakes registered yet.</p>
   {% endif %}
 </div>
+
+<script>
+  const krakeRefreshMs = 3000
+  const krakeListRoot = document.getElementById("krake-list-root")
+  const krakeRefreshStatus = document.getElementById("krake-refresh-status")
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;")
+  }
+
+  function severityClass(sev) {
+    if (sev === null || sev === undefined || sev === "") {
+      return "sev-unknown"
+    }
+    const value = Number(sev)
+    if (Number.isNaN(value)) {
+      return "sev-unknown"
+    }
+    if (value >= 5) return "sev-5"
+    if (value === 4) return "sev-4"
+    if (value === 3) return "sev-3"
+    if (value === 2) return "sev-2"
+    if (value === 1) return "sev-1"
+    return "sev-0"
+  }
+
+  function formatBufferedAlarm(bufferedAlarm) {
+    if (!bufferedAlarm) {
+      return ""
+    }
+    if (Array.isArray(bufferedAlarm)) {
+      return escapeHtml(bufferedAlarm.join(" | "))
+    }
+    return escapeHtml(JSON.stringify(bufferedAlarm))
+  }
+
+  function renderKrakeCard(k) {
+    const mutedClass = k.muted ? " muted-state" : ""
+    const currentSeverity = k.current_sev ?? "None"
+    const currentMsgId = k.current_msg_id || "None"
+    const currentText = k.current_text || "No active alarm"
+    const bufferedHtml = k.buffered_alarm
+      ? `<p><strong>Buffered:</strong> ${formatBufferedAlarm(k.buffered_alarm)}</p>`
+      : ""
+
+    const actions = [
+      ["a", "Acknowledge"],
+      ["c", "Complete"],
+      ["d", "Dismiss"],
+      ["s", "Shelve"],
+      ["m", "Mute"],
+      ["u", "Unmute"],
+    ].map(([action, label]) => `
+      <form method="post" action="/krakes/${encodeURIComponent(k.krake_id)}/action">
+        <input type="hidden" name="action" value="${action}">
+        <button type="submit">${label}</button>
+      </form>
+    `).join("")
+
+    return `
+      <div class="krake-card${mutedClass}">
+        <div class="krake-header">
+          <h3>${escapeHtml(k.name)}</h3>
+          <span class="badge">${escapeHtml(k.krake_id)}</span>
+        </div>
+
+        <p><strong>Annunciator:</strong> ${escapeHtml(k.annunciator_topic)}</p>
+        <p><strong>Ack Topic:</strong> ${escapeHtml(k.ack_topic)}</p>
+        <p><strong>Status:</strong> ${k.muted ? "MUTED" : "UNMUTED"}</p>
+        <p><strong>Last Event:</strong> ${escapeHtml(k.last_event)}</p>
+        <p><strong>Updated:</strong> ${escapeHtml(k.last_updated)}</p>
+        <p><strong>Hold Remaining:</strong> ${escapeHtml(k.hold_remaining)}s</p>
+
+        <div class="alarm-box ${severityClass(k.current_sev)}">
+          <p><strong>Current Msg ID:</strong> ${escapeHtml(currentMsgId)}</p>
+          <p><strong>Current Severity:</strong> ${escapeHtml(currentSeverity)}</p>
+          <p><strong>Current Text:</strong> ${escapeHtml(currentText)}</p>
+          ${bufferedHtml}
+        </div>
+
+        <div class="action-row">
+          ${actions}
+        </div>
+      </div>
+    `
+  }
+
+  async function refreshKrakes() {
+    try {
+      const response = await fetch("{{ url_for('api_krakes') }}", {
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const items = await response.json()
+      if (!Array.isArray(items) || items.length === 0) {
+        krakeListRoot.innerHTML = '<p id="no-krakes-message">No web-simulated Krakes yet.</p>'
+      } else {
+        krakeListRoot.innerHTML = items.map(renderKrakeCard).join("")
+      }
+
+      krakeRefreshStatus.textContent = `Auto refresh every 3s • Last updated ${new Date().toLocaleTimeString()}`
+    } catch (error) {
+      krakeRefreshStatus.textContent = `Auto refresh failed • ${error.message}`
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    refreshKrakes()
+    window.setInterval(refreshKrakes, krakeRefreshMs)
+  })
+</script>
 {% endblock %}

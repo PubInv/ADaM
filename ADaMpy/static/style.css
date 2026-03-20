@@ -240,3 +240,50 @@ th {
 .muted-state {
   opacity: 0.9;
 }
+
+
+
+
+
+#log-timeline {
+  width: 100%;
+  min-height: 460px;
+}
+
+.krake-card p {
+  margin: 8px 0;
+  word-break: break-word;
+}
+
+.krake-header h3 {
+  margin: 0;
+  word-break: break-word;
+}
+
+.action-row button {
+  min-width: 120px;
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid .span-2 {
+    grid-column: auto;
+  }
+
+  .krake-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .action-row {
+    flex-direction: column;
+  }
+
+  .action-row form,
+  .action-row button {
+    width: 100%;
+  }
+}

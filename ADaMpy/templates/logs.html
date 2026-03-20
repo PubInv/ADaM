@@ -4,13 +4,71 @@
 <h1>Logs</h1>
 <p class="muted">Reading from {{ log_file }}</p>
 
+<div class="grid two">
+  <div class="card">
+    <h2>Total Events</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.total }}</div>
+  </div>
+  <div class="card">
+    <h2>Timestamped Events</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.timestamped }}</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Alarms Received</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.received }}</div>
+  </div>
+  <div class="card">
+    <h2>Alarms Sent</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.sent }}</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Operator Actions</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.operator }}</div>
+  </div>
+  <div class="card">
+    <h2>Acks</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.acks }}</div>
+  </div>
+</div>
+
+<div class="grid two">
+  <div class="card">
+    <h2>Warnings</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.warnings }}</div>
+  </div>
+  <div class="card">
+    <h2>Overrides</h2>
+    <div style="font-size: 2rem; font-weight: 700">{{ summary.overrides }}</div>
+  </div>
+</div>
+
 <div class="card">
-  <h2>Graphical View</h2>
+  <h2>Graphical Timeline</h2>
+  {% if timeline_events %}
+    <div id="log-timeline" style="width: 100%; min-height: 460px"></div>
+    <p class="muted">X-axis is time. Y-axis is event type. Hover to inspect msg_id, severity, and the raw line.</p>
+  {% else %}
+    <p>No timestamped log events were found.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Event Feed</h2>
   {% if events %}
     <div class="event-list">
       {% for event in events %}
         <div class="event-card {{ event.severity_class }}">
-          <div class="event-label">{{ event.label }}</div>
+          <div>
+            <strong>{{ event.label }}</strong>
+            {% if event.timestamp %} • {{ event.timestamp }}{% endif %}
+            {% if event.msg_id %} • {{ event.msg_id }}{% endif %}
+          </div>
           <div class="event-raw">{{ event.raw }}</div>
         </div>
       {% endfor %}
@@ -29,4 +87,102 @@
     <p>No logs available.</p>
   {% endif %}
 </div>
+
+{% if timeline_events %}
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<script>
+  const timelineEvents = {{ timeline_events | tojson }}
+
+  const categoryOrder = [
+    "connect",
+    "config",
+    "web_subscribe",
+    "web_publish",
+    "krake",
+    "alarm_received",
+    "override",
+    "alarm_sent",
+    "ack",
+    "web_ack",
+    "operator",
+    "unshelve",
+    "mute",
+    "warning",
+    "error",
+    "lifecycle",
+    "web",
+    "other"
+  ]
+
+  function groupByKind(events) {
+    const groups = new Map()
+    for (const event of events) {
+      const key = event.kind || "other"
+      if (!groups.has(key)) {
+        groups.set(key, [])
+      }
+      groups.get(key).push(event)
+    }
+    return groups
+  }
+
+  function markerSize(event) {
+    const sev = Number(event.severity)
+    if (Number.isFinite(sev)) {
+      return 8 + sev * 2
+    }
+    return 10
+  }
+
+  const traces = Array.from(groupByKind(timelineEvents).entries()).map(([kind, events]) => ({
+    type: "scatter",
+    mode: "markers",
+    name: kind,
+    x: events.map(event => event.timestamp_iso),
+    y: events.map(() => kind),
+    text: events.map(event => event.raw),
+    customdata: events.map(event => [
+      event.label || "",
+      event.msg_id || "",
+      event.severity ?? "",
+      event.event_index
+    ]),
+    hovertemplate:
+      "<b>%{customdata[0]}</b><br>" +
+      "Type: %{y}<br>" +
+      "Time: %{x}<br>" +
+      "Message ID: %{customdata[1]}<br>" +
+      "Severity: %{customdata[2]}<br>" +
+      "Line: %{customdata[3]}<br>" +
+      "%{text}<extra></extra>",
+    marker: {
+      size: events.map(markerSize),
+      opacity: 0.85
+    }
+  }))
+
+  Plotly.newPlot(
+    "log-timeline",
+    traces,
+    {
+      margin: { t: 20, r: 20, b: 60, l: 120 },
+      xaxis: {
+        title: "Timestamp",
+        type: "date"
+      },
+      yaxis: {
+        title: "Event Type",
+        automargin: true,
+        categoryorder: "array",
+        categoryarray: categoryOrder
+      },
+      hovermode: "closest"
+    },
+    {
+      responsive: true,
+      displaylogo: false
+    }
+  )
+</script>
+{% endif %}
 {% endblock %}
