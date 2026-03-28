@@ -2,7 +2,8 @@
 
 Here's the YT link:
 
-[https://www.youtube.com/watch?v=fbS1wBQAepc](https://www.youtube.com/watch?v=fbS1wBQAepc)
+https://www.youtube.com/watch?v=DrFoFo0yePE
+[![Watch the demo](https://img.youtube.com/vi/DrFoFo0yePE/maxresdefault.jpg)](https://www.youtube.com/watch?v=DrFoFo0yePE)
 
 Here's the link to test our live site:
 
