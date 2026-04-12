@@ -262,3 +262,26 @@ Force overwrite (dangerous):
 ```powershell
 git push --force origin main
 ```
+
+## ADAM App setup and how to run it using EXPO GO
+
+### 1) Install the EXPO GO app on your phone
+- for Iphone devices, type EXPO GO in the App Store and install the app
+- for Android devices, type EXPO GO in the Google Play store and install the app
+
+### 2) Download Node.Js on your local machine
+- Go to https://nodejs.org/en/download and download Node.Js and choose the option corresponding to your operating system
+- follow the installation instructions
+
+### 3) Open Visual Studio Code on your machine
+- After the installation of Node.js is complete, open Visual studio code on your machine
+- From the options bar on the top, go to "File" -> "Open Folder" and locate the folder where the program app is on your device which should be under the "ADaM" directory in a folder called "Mobile"
+- Once the folder opens in VS Code, Open a new terminal in VS Code and type the command,
+  ```powershell
+  npm install
+  ```
+- After the npm is installed, type this command,
+  ```powershell
+  npx expo start
+  ```
+- The program will run now and a QR Code will appear, scan the QR Code on your phone and the ADAM app will open on EXPO GO
