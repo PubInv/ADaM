@@ -1,15 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { connectMqtt, disconnectMqtt, publishAction } from './src/services/mqttService'
 import { Alarm } from './src/types/alarm'
+import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound } from './src/services/alertService'
 
 export default function App() {
   const [status, setStatus] = useState('Connecting...')
   const [error, setError] = useState('')
   const [currentAlarm, setCurrentAlarm] = useState<Alarm | null>(null)
   const [history, setHistory] = useState<string[]>([])
+  const [isMuted, setIsMuted] = useState(false)
+  const isMutedRef = useRef(false)
 
   useEffect(() => {
+  isMutedRef.current = isMuted
+}, [isMuted])
+
+  useEffect(() => {
+    loadAlarmSound()
+    
+
     connectMqtt({
       onConnect: () => {
         setStatus('Connected')
@@ -24,30 +34,60 @@ export default function App() {
         setError(err)
         setHistory(prev => [`Error: ${err}`, ...prev])
       },
-      onAlarm: (alarm) => {
+      onAlarm: async (alarm) => {
         setCurrentAlarm(alarm)
         setHistory(prev => [`Alarm received: ${alarm.message}`, ...prev])
+
+        await triggerAlarmAlert(isMutedRef.current)
       },
+      
+
     })
 
     return () => {
       disconnectMqtt()
+      cleanupAlarmSound()
     }
   }, [])
 
   const handleAction = (action: string) => {
     try {
       publishAction(action, currentAlarm ?? undefined)
-      setHistory(prev => [`Action sent: ${action}`, ...prev])
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to publish action'
-      setError(msg)
-      setHistory(prev => [`Error: ${msg}`, ...prev])
+      const alarmLabel = currentAlarm
+      ? `[ID: ${currentAlarm.id ?? 'n/a'}] ${currentAlarm.message}`
+      : 'No active alarm'
+
+    if (action === 'acknowledge') {
+      setHistory(prev => [`Acknowledgment sent for ${alarmLabel}`, ...prev])
+    } else {
+      setHistory(prev => [`Action sent: ${action} for ${alarmLabel}`, ...prev])
     }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to publish action'
+    setError(msg)
+    setHistory(prev => [`Error: ${msg}`, ...prev])
+  }
+  }
+
+  const toggleMute = () => {
+    setIsMuted(prev => {
+      const nextMuted = !prev
+
+      if(nextMuted) {
+        stopAlarmAlert()
+        setHistory(historyPrev => ['Alerts muted', ...historyPrev])
+      }else {
+        setHistory(historyPrev => ['Alerts unmuted', ...historyPrev])
+      }
+      return nextMuted
+    })
   }
 
   return (
     <SafeAreaView style={styles.container}>
+    <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
+      <Text style = {styles.muteButtonText}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+    </TouchableOpacity>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>ADaM Mobile MVP</Text>
         <Text style={styles.status}>Status: {status}</Text>
@@ -115,6 +155,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
+    paddingTop: 70,
     gap: 16,
   },
   title: {
@@ -170,4 +211,28 @@ const styles = StyleSheet.create({
     color: '#e5e7eb',
     marginTop: 6,
   },
+  muteButton: {
+  position: 'absolute',
+  top: 46,
+  left: 16,
+  zIndex: 10,
+  minWidth: 90,
+  backgroundColor: '#374151',
+  paddingVertical: 10,
+  paddingHorizontal: 14,
+  borderRadius: 10,
+  alignItems: 'center',
+},
+muteButtonText: {
+  color: '#ffffff',
+  fontWeight: '700',
+},
 })
+
+
+// notes:
+// the app doesn't send back acknowledments to the server. (Done)
+// no mute/unmute functionality implemented yet. (Done)
+// no sounds implemented.(Done)
+// a proper log history tab
+//
