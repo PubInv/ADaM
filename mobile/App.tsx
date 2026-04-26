@@ -10,6 +10,7 @@ export default function App() {
   const [currentAlarm, setCurrentAlarm] = useState<Alarm | null>(null)
   const [history, setHistory] = useState<string[]>([])
   const [isMuted, setIsMuted] = useState(false)
+  const [currentPage, setCurrentPage] = useState<'home' | 'logs'>('home')
   const isMutedRef = useRef(false)
 
   useEffect(() => {
@@ -83,13 +84,41 @@ export default function App() {
     })
   }
 
+   if(currentPage === 'logs') {
+     return (
+       <SafeAreaView style={styles.container}>
+         <View style={styles.logsHeader}>
+           <TouchableOpacity style={styles.smallTopButton} onPress={() => setCurrentPage('home')}>
+             <Text style={styles.smallTopButtonText}>Home</Text>
+           </TouchableOpacity>
+         </View>
+
+         <ScrollView contentContainerStyle={styles.logsContent}>
+           <Text style={styles.title}>Logs</Text>
+
+         <View style={styles.card}>
+             {history.length === 0 ? (
+               <Text style={styles.value}>No logs recorded yet</Text>
+             ) : (
+               history.map((item, index) => (
+                 <Text key={index} style={styles.historyItem}>
+                   • {item}
+                </Text>
+               ))
+             )}
+           </View>
+         </ScrollView>
+       </SafeAreaView>  
+     )
+   }
+
   return (
     <SafeAreaView style={styles.container}>
     <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
       <Text style = {styles.muteButtonText}>{isMuted ? 'Unmute' : 'Mute'}</Text>
     </TouchableOpacity>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>ADaM Mobile MVP</Text>
+        <Text style={styles.title}>ADaM Mobile </Text>
         <Text style={styles.status}>Status: {status}</Text>
 
         {error ? <Text style={styles.error}>Error: {error}</Text> : null}
@@ -122,6 +151,11 @@ export default function App() {
           <ActionButton label="Dismiss" onPress={() => handleAction('dismiss')} />
           <ActionButton label="Shelve" onPress={() => handleAction('shelve')} />
         </View>
+
+      <TouchableOpacity style={styles.logsButton} onPress={() => setCurrentPage('logs')}>
+        <Text style={styles.logsButtonText}>All Logs</Text>
+      </TouchableOpacity>
+    
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>History</Text>
@@ -157,6 +191,11 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 70,
     gap: 16,
+  },
+  logsContent:{
+    padding: 20,
+    paddingTop: 70,
+    gap:16,
   },
   title: {
     fontSize: 28,
@@ -214,7 +253,7 @@ const styles = StyleSheet.create({
   muteButton: {
   position: 'absolute',
   top: 46,
-  left: 16,
+  right: 16,
   zIndex: 10,
   minWidth: 90,
   backgroundColor: '#374151',
@@ -224,6 +263,47 @@ const styles = StyleSheet.create({
   alignItems: 'center',
 },
 muteButtonText: {
+  color: '#ffffff',
+  fontWeight: '700',
+},
+logsButton: {
+  position: 'absolute',
+  left: 70,
+  right: 70,
+  bottom: -70,
+  zIndex: 10,
+  minWidth: 90,
+  marginTop: 0,
+  backgroundColor: '#374151',
+  paddingVertical: 14,
+  borderRadius: 10,
+  alignItems: 'center',
+  marginBottom: 20,
+},
+logsButtonText: {
+  color: '#ffffff',
+  fontWeight: '700',
+  fontSize: 16,
+},
+logsHeader: {
+  position: 'absolute',
+  top: 16,
+  left: 16,
+  zIndex: 10,
+},
+smallTopButton: {
+  position: 'absolute',
+  top: 30,
+  left: 270,
+  zIndex: 10,
+  minWidth: 90,
+  backgroundColor: '#374151',
+  paddingVertical: 10,
+  paddingHorizontal: 14,
+  borderRadius: 10,
+  alignItems: 'center',
+},
+smallTopButtonText: {
   color: '#ffffff',
   fontWeight: '700',
 },
