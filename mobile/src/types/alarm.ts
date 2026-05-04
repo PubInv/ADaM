@@ -1,6 +1,6 @@
 export type Alarm = {
   id?: string
-  severity?: string
+  severity?: string 
   message: string
   timestamp?: string
   raw?: string

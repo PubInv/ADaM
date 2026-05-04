@@ -4,17 +4,39 @@ import { Alarm } from '../types/alarm'
 
 let client: MqttClient | null = null
 
+const getSeverityLabel = (value: unknown): string => {
+  if (value === null || value === undefined) return 'unknown'
+
+  const stringValue = String(value).trim().toLowerCase()
+
+  if (stringValue === '1') return 'Informational'
+  if (stringValue === '2') return 'Problem'
+  if (stringValue === '3') return 'Warning'
+  if (stringValue === '4') return 'Critical'
+  if (stringValue === '5') return 'Panic'
+
+  if (stringValue === 'informational') return 'Informational'
+  if (stringValue === 'problem') return 'Problem'
+  if (stringValue === 'warning') return 'Warning'
+  if (stringValue === 'critical') return 'Critical'
+  if (stringValue === 'panic') return 'Panic'
+
+  return 'unknown'
+}
+
 const parseAlarmMessage = (payload: string): Alarm => {
   try {
+    console.log('Raw alarm payload:', payload)
     const data = JSON.parse(payload)
-
+    console.log('Incoming alarm data:', data)
     return {
       id: data.id ?? data.alarm_id ?? data.uuid ?? '',
-      severity: data.severity ?? data.priority ?? 'unknown',
+      severity: getSeverityLabel(data.severity ?? data.priority ?? data.level),
       message: data.message ?? data.text ?? data.description ?? payload,
       timestamp: data.timestamp ?? new Date().toISOString(),
       raw: payload,
     }
+    
   } catch {
     return {
       message: payload,
@@ -23,6 +45,8 @@ const parseAlarmMessage = (payload: string): Alarm => {
       raw: payload,
     }
   }
+
+  
 }
 
 export const connectMqtt = ({

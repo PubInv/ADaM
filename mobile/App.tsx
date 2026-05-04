@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { connectMqtt, disconnectMqtt, publishAction } from './src/services/mqttService'
 import { Alarm } from './src/types/alarm'
-import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound } from './src/services/alertService'
+import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound, triggerAlarmAnnouncement, stopAlarmAnnouncement } from './src/services/alertService'
 
 type LogEntry = {
   id: string
@@ -56,7 +56,7 @@ export default function App() {
         setCurrentAlarm(alarm)
         addLog({type: 'alarm', text: `Alarm received: ${alarm.message}`, alarm})
 
-        await triggerAlarmAlert(isMutedRef.current)
+        await triggerAlarmAnnouncement(alarm, isMutedRef.current)
       },
       
 
@@ -108,7 +108,7 @@ export default function App() {
       const nextMuted = !prev
 
       if(nextMuted) {
-        stopAlarmAlert()
+        stopAlarmAnnouncement()
         addLog({type: 'system', text: 'Alerts muted'})
       }else {
         addLog({type: 'system', text: 'Alerts unmuted'})
@@ -137,7 +137,6 @@ export default function App() {
                  <View key={item.id} style={styles.logCard}>
                   <Text style={styles.historyItem}>• {item.text}</Text>
                   <Text style={styles.logMeta}>Type: {item.type}</Text>
-                  <Text style={styles.logMeta}>Log Time: {item.createdAt}</Text>
                   <Text style={styles.logMeta}>Alarm ID: {item.alarm?.id ?? 'n/a'}</Text>
                   <Text style={styles.logMeta}>Alarm Timestamp: {item.alarm?.timestamp ?? 'n/a'}</Text>
                   <Text style={styles.logMeta}>Severity: {item.alarm?.severity ?? 'n/a'}</Text>
