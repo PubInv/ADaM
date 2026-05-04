@@ -4,14 +4,31 @@ import { connectMqtt, disconnectMqtt, publishAction } from './src/services/mqttS
 import { Alarm } from './src/types/alarm'
 import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound } from './src/services/alertService'
 
+type LogEntry = {
+  id: string
+  type: 'alarm' | 'acknowledge' | 'dismiss' | 'shelve' | 'complete' | 'system' | 'error'
+  text: string
+  createdAt: string
+  alarm?: Alarm
+}
+
 export default function App() {
   const [status, setStatus] = useState('Connecting...')
   const [error, setError] = useState('')
   const [currentAlarm, setCurrentAlarm] = useState<Alarm | null>(null)
-  const [history, setHistory] = useState<string[]>([])
+  const [history, setHistory] = useState<LogEntry[]>([])
   const [isMuted, setIsMuted] = useState(false)
   const [currentPage, setCurrentPage] = useState<'home' | 'logs'>('home')
   const isMutedRef = useRef(false)
+  const addLog = (entry: Omit<LogEntry, 'id' | 'createdAt'>) =>{
+    const newLog:LogEntry = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      createdAt: new Date().toISOString(),
+      ...entry,
+    }
+
+    setHistory(prev => [newLog,...prev])
+  }
 
   useEffect(() => {
   isMutedRef.current = isMuted
@@ -25,19 +42,19 @@ export default function App() {
       onConnect: () => {
         setStatus('Connected')
         setError('')
-        setHistory(prev => [`Connected to broker`, ...prev])
+        addLog({type: 'system', text: 'Connected to broker'})
       },
       onDisconnect: () => {
         setStatus('Disconnected')
-        setHistory(prev => [`Disconnected from broker`, ...prev])
+        addLog({type: 'system', text: 'Disconnected from broker'})
       },
       onError: (err) => {
         setError(err)
-        setHistory(prev => [`Error: ${err}`, ...prev])
+        addLog({type: 'error', text: `Error: ${err}`})
       },
       onAlarm: async (alarm) => {
         setCurrentAlarm(alarm)
-        setHistory(prev => [`Alarm received: ${alarm.message}`, ...prev])
+        addLog({type: 'alarm', text: `Alarm received: ${alarm.message}`, alarm})
 
         await triggerAlarmAlert(isMutedRef.current)
       },
@@ -51,24 +68,40 @@ export default function App() {
     }
   }, [])
 
-  const handleAction = (action: string) => {
-    try {
-      publishAction(action, currentAlarm ?? undefined)
-      const alarmLabel = currentAlarm
-      ? `[ID: ${currentAlarm.id ?? 'n/a'}] ${currentAlarm.message}`
-      : 'No active alarm'
+  const handleAction = (action: 'acknowledge' | 'dismiss' | 'shelve' | 'complete') => {
+  try {
+    publishAction(action, currentAlarm ?? undefined)
+
+    const alarmMessage = currentAlarm?.message ?? 'No active alarm'
+
+    let actionText = ''
 
     if (action === 'acknowledge') {
-      setHistory(prev => [`Acknowledgment sent for ${alarmLabel}`, ...prev])
-    } else {
-      setHistory(prev => [`Action sent: ${action} for ${alarmLabel}`, ...prev])
+      actionText = `Acknowledgment sent for alarm: ${alarmMessage}`
+    } else if (action === 'dismiss') {
+      actionText = `Dismiss sent for alarm: ${alarmMessage}`
+    } else if (action === 'shelve') {
+      actionText = `Shelve sent for alarm: ${alarmMessage}`
+    } else if (action === 'complete') {
+      actionText = `Complete sent for alarm: ${alarmMessage}`
     }
+
+    addLog({
+      type: action,
+      text: actionText,
+      alarm: currentAlarm ?? undefined,
+    })
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Failed to publish action'
     setError(msg)
-    setHistory(prev => [`Error: ${msg}`, ...prev])
+
+    addLog({
+      type: 'error',
+      text: `Error: ${msg}`,
+      alarm: currentAlarm ?? undefined,
+    })
   }
-  }
+}
 
   const toggleMute = () => {
     setIsMuted(prev => {
@@ -76,9 +109,9 @@ export default function App() {
 
       if(nextMuted) {
         stopAlarmAlert()
-        setHistory(historyPrev => ['Alerts muted', ...historyPrev])
+        addLog({type: 'system', text: 'Alerts muted'})
       }else {
-        setHistory(historyPrev => ['Alerts unmuted', ...historyPrev])
+        addLog({type: 'system', text: 'Alerts unmuted'})
       }
       return nextMuted
     })
@@ -100,10 +133,15 @@ export default function App() {
              {history.length === 0 ? (
                <Text style={styles.value}>No logs recorded yet</Text>
              ) : (
-               history.map((item, index) => (
-                 <Text key={index} style={styles.historyItem}>
-                   • {item}
-                </Text>
+               history.map((item) => (
+                 <View key={item.id} style={styles.logCard}>
+                  <Text style={styles.historyItem}>• {item.text}</Text>
+                  <Text style={styles.logMeta}>Type: {item.type}</Text>
+                  <Text style={styles.logMeta}>Log Time: {item.createdAt}</Text>
+                  <Text style={styles.logMeta}>Alarm ID: {item.alarm?.id ?? 'n/a'}</Text>
+                  <Text style={styles.logMeta}>Alarm Timestamp: {item.alarm?.timestamp ?? 'n/a'}</Text>
+                  <Text style={styles.logMeta}>Severity: {item.alarm?.severity ?? 'n/a'}</Text>
+                </View>
                ))
              )}
            </View>
@@ -117,7 +155,9 @@ export default function App() {
     <TouchableOpacity style={styles.muteButton} onPress={toggleMute}>
       <Text style = {styles.muteButtonText}>{isMuted ? 'Unmute' : 'Mute'}</Text>
     </TouchableOpacity>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}>
+      
         <Text style={styles.title}>ADaM Mobile </Text>
         <Text style={styles.status}>Status: {status}</Text>
 
@@ -162,9 +202,9 @@ export default function App() {
           {history.length === 0 ? (
             <Text style={styles.value}>No events yet</Text>
           ) : (
-            history.slice(0, 10).map((item, index) => (
+            history.slice(0, 8).map((item, index) => (
               <Text key={index} style={styles.historyItem}>
-                • {item}
+                • {item.text}
               </Text>
             ))
           )}
@@ -189,12 +229,14 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 70,
+    paddingTop: 40,
+    paddingBottom: 100,
     gap: 16,
+    flexGrow: 1,
   },
   logsContent:{
     padding: 20,
-    paddingTop: 70,
+    paddingTop: 50,
     gap:16,
   },
   title: {
@@ -212,14 +254,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#1f2937',
-    padding: 16,
+    padding: 10,
     borderRadius: 12,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
-    marginBottom: 12,
+    marginBottom: 1,
   },
   label: {
     fontSize: 13,
@@ -248,7 +290,7 @@ const styles = StyleSheet.create({
   },
   historyItem: {
     color: '#e5e7eb',
-    marginTop: 6,
+    marginTop: 5,
   },
   muteButton: {
   position: 'absolute',
@@ -270,7 +312,7 @@ logsButton: {
   position: 'absolute',
   left: 70,
   right: 70,
-  bottom: -70,
+  bottom: 0,
   zIndex: 10,
   minWidth: 90,
   marginTop: 0,
@@ -306,6 +348,20 @@ smallTopButton: {
 smallTopButtonText: {
   color: '#ffffff',
   fontWeight: '700',
+},
+logCard: {
+  backgroundColor: '#111827',
+  borderWidth: 1,
+  borderColor: '#374151',
+  borderRadius: 10,
+  padding: 12,
+  marginTop: 10,
+},
+
+logMeta: {
+  color: '#9ca3af',
+  fontSize: 13,
+  marginTop: 4,
 },
 })
 
