@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from 'react'
 import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { connectMqtt, disconnectMqtt, publishAction } from './src/services/mqttService'
 import { Alarm } from './src/types/alarm'
-import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound, triggerAlarmAnnouncement, stopAlarmAnnouncement } from './src/services/alertService'
+//import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound, triggerAlarmAnnouncement, stopAlarmAnnouncement } from './src/services/alertService'
+import { prepareAlertAudio, triggerAlarmAnnouncement, stopAlarmAlert} from './src/services/alertService'
 
 type LogEntry = {
   id: string
@@ -35,8 +36,7 @@ export default function App() {
 }, [isMuted])
 
   useEffect(() => {
-    loadAlarmSound()
-    
+    prepareAlertAudio()
 
     connectMqtt({
       onConnect: () => {
@@ -64,7 +64,8 @@ export default function App() {
 
     return () => {
       disconnectMqtt()
-      cleanupAlarmSound()
+      //cleanupAlarmSound()
+      stopAlarmAlert()
     }
   }, [])
 
@@ -108,7 +109,7 @@ export default function App() {
       const nextMuted = !prev
 
       if(nextMuted) {
-        stopAlarmAnnouncement()
+        stopAlarmAlert()
         addLog({type: 'system', text: 'Alerts muted'})
       }else {
         addLog({type: 'system', text: 'Alerts unmuted'})
@@ -195,7 +196,8 @@ export default function App() {
         <Text style={styles.logsButtonText}>All Logs</Text>
       </TouchableOpacity>
     
-
+      
+      
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>History</Text>
           {history.length === 0 ? (
@@ -210,6 +212,8 @@ export default function App() {
         </View>
       </ScrollView>
     </SafeAreaView>
+
+    
   )
 }
 

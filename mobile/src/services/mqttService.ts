@@ -25,28 +25,46 @@ const getSeverityLabel = (value: unknown): string => {
 }
 
 const parseAlarmMessage = (payload: string): Alarm => {
-  try {
-    console.log('Raw alarm payload:', payload)
-    const data = JSON.parse(payload)
-    console.log('Incoming alarm data:', data)
-    return {
-      id: data.id ?? data.alarm_id ?? data.uuid ?? '',
-      severity: getSeverityLabel(data.severity ?? data.priority ?? data.level),
-      message: data.message ?? data.text ?? data.description ?? payload,
-      timestamp: data.timestamp ?? new Date().toISOString(),
-      raw: payload,
-    }
-    
-  } catch {
-    return {
-      message: payload,
-      severity: 'unknown',
-      timestamp: new Date().toISOString(),
-      raw: payload,
-    }
+  const severityMatch = payload.match(/^a(\d+)/i)
+  const idMatch = payload.match(/\{([^}]+)\}/)
+  const typeMatch = payload.match(/TYPE:([A-Z0-9_]+)/i)
+
+  const severityNumber = severityMatch?.[1]
+  const alarmId = idMatch?.[1]
+  const alarmType = typeMatch?.[1]
+
+  const formattedMessage = alarmType
+    ? alarmType
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, char => char.toUpperCase())
+    : payload
+
+  return {
+    id: alarmId ?? '',
+    severity: getSeverityLabel(severityNumber),
+    message: formattedMessage,
+    timestamp: new Date().toISOString(),
+    raw: payload,
   }
 
-  
+}
+
+const buildActionMessage = (action: string, alarm?: Alarm): string => {
+  const severityCode =
+    alarm?.severity === 'Informational' ? '1' :
+    alarm?.severity === 'Problem' ? '2' :
+    alarm?.severity === 'Warning' ? '3' :
+    alarm?.severity === 'Critical' ? '4' :
+    alarm?.severity === 'Panic' ? '5' :
+    '0'
+
+  const alarmId = alarm?.id ?? 'UNKNOWN'
+  const messageType = alarm?.message
+    ? alarm.message.toUpperCase().replace(/\s+/g, '_')
+    : 'UNKNOWN'
+
+  return `ACTION:${action.toUpperCase()};SEVERITY:${severityCode};ID:${alarmId};TYPE:${messageType}`
 }
 
 export const connectMqtt = ({
@@ -79,7 +97,7 @@ export const connectMqtt = ({
         onError?.(`Subscribe failed: ${err.message}`)
       }
     })
-  })
+})
 
   client.on('message', (topic, message) => {
     if (topic !== mqttConfig.alarmTopic) return
@@ -105,16 +123,9 @@ export const publishAction = (action: string, alarm?: Alarm) => {
     throw new Error('MQTT client is not connected')
   }
 
-  const payload = {
-    action,
-    alarm_id: alarm?.id ?? '',
-    device: mqttConfig.deviceName,
-    timestamp: new Date().toISOString(),
-    source: 'mobile',
-    message: alarm?.message ?? '',
-  }
+  const payload = buildActionMessage(action, alarm)
 
-  client.publish(mqttConfig.ackTopic, JSON.stringify(payload))
+  client.publish(mqttConfig.ackTopic, payload)
 }
 
 export const disconnectMqtt = () => {
