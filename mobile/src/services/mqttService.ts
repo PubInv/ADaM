@@ -39,14 +39,16 @@ const parseAlarmMessage = (payload: string): Alarm => {
         .toLowerCase()
         .replace(/\b\w/g, char => char.toUpperCase())
     : payload
-
   return {
     id: alarmId ?? '',
+    typeCode: alarmType ?? '',
     severity: getSeverityLabel(severityNumber),
     message: formattedMessage,
     timestamp: new Date().toISOString(),
     raw: payload,
   }
+
+  
 
 }
 

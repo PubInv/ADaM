@@ -3,7 +3,7 @@ import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { connectMqtt, disconnectMqtt, publishAction } from './src/services/mqttService'
 import { Alarm } from './src/types/alarm'
 //import { loadAlarmSound, triggerAlarmAlert, stopAlarmAlert, cleanupAlarmSound, triggerAlarmAnnouncement, stopAlarmAnnouncement } from './src/services/alertService'
-import { prepareAlertAudio, triggerAlarmAnnouncement, stopAlarmAlert} from './src/services/alertService'
+import { prepareAlertAudio, playAlarmAudio, stopAlarmAudio} from './src/services/alertService'
 
 type LogEntry = {
   id: string
@@ -56,7 +56,7 @@ export default function App() {
         setCurrentAlarm(alarm)
         addLog({type: 'alarm', text: `Alarm received: ${alarm.message}`, alarm})
 
-        await triggerAlarmAnnouncement(alarm, isMutedRef.current)
+        await playAlarmAudio(alarm, isMutedRef.current)
       },
       
 
@@ -65,7 +65,7 @@ export default function App() {
     return () => {
       disconnectMqtt()
       //cleanupAlarmSound()
-      stopAlarmAlert()
+      stopAlarmAudio()
     }
   }, [])
 
@@ -109,7 +109,7 @@ export default function App() {
       const nextMuted = !prev
 
       if(nextMuted) {
-        stopAlarmAlert()
+        stopAlarmAudio()
         addLog({type: 'system', text: 'Alerts muted'})
       }else {
         addLog({type: 'system', text: 'Alerts unmuted'})
