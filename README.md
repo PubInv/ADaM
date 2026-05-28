@@ -184,7 +184,13 @@ Manual alarm test:
 ```powershell
 python .\simulators\manual_alarm_test.py
 ```
+---
+### To run the ADAM website
+```powershell
+python -m ADaMpy.app
+```
 
+- Then copy the URL shown in the terminal to a browser
 ---
 
 ## Policies (Strategy pattern)
