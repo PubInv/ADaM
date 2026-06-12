@@ -53,7 +53,7 @@ def on_message(client, userdata, msg):
 def main():
     cfg = load_cfg()
 
-    broker = cfg.get("broker_host", "public.cloud.shiftr.io")
+    broker = cfg.get("broker_host", "krakepublic.cloud.shiftr.io")
     port = int(cfg.get("broker_port", 1883))
     user = cfg.get("username", "public")
     pw = cfg.get("password", "public")

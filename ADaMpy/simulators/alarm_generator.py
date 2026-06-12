@@ -57,7 +57,7 @@ def main():
 
     client = mqtt.Client(client_id="alarm_generator")
     client.username_pw_set(cfg.get("username", "public"), cfg.get("password", "public"))
-    client.connect(cfg.get("broker_host", "public.cloud.shiftr.io"), int(cfg.get("broker_port", 1883)))
+    client.connect(cfg.get("broker_host", "krakepublic.cloud.shiftr.io"), int(cfg.get("broker_port", 1883)))
     client.loop_start()
 
     print(f"[Generator] Publishing GPAP alarms to: {topic}")

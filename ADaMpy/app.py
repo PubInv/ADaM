@@ -253,6 +253,7 @@ class WebKrake:
             return False
 
         info = MQTT_CLIENT.publish(self.ack_topic, payload, qos=1)
+        print("topic: {self.ack_topic}\n")
         ok = info.rc == 0
         if ok:
             self._touch(f"Sent action: {payload}")
@@ -301,6 +302,8 @@ def get_cfg_annunciators(cfg: dict) -> list[str]:
     if not isinstance(items, list):
         return []
     cleaned = [str(x).strip() for x in items if str(x).strip()]
+    # Warning: Remove
+    print(cleaned)
     return cleaned
 
 
@@ -311,10 +314,11 @@ def ensure_mqtt_client() -> None:
         return
 
     cfg = load_cfg()
-    broker = cfg.get("broker_host", "public.cloud.shiftr.io")
+#    broker = cfg.get("broker_host", "public.cloud.shiftr.io")
+    broker = cfg.get("broker_host", "krakepubinv.cloud.shiftr.io")
     port = int(cfg.get("broker_port", 1883))
-    username = cfg.get("username", "public")
-    password = cfg.get("password", "public")
+    username = cfg.get("username", "krakepubinv")
+    password = cfg.get("password", "DlDmkWjp4I4kgDcA")
 
     kwargs = {"client_id": f"ADaMWeb-{uuid.uuid4().hex[:6]}"}
     try:
@@ -635,6 +639,7 @@ def manual_alarm():
 
     message = None
     error = None
+    print("ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ\n")
 
     if request.method == "POST":
         ensure_mqtt_client()
@@ -658,11 +663,22 @@ def manual_alarm():
         try:
             payload = encode_gpap_alarm(sev, text, msg_id=mid, max_len=80)
             info = MQTT_CLIENT.publish(topic, payload, qos=1)
+            print(f"topic {topic}\n")
             if info.rc == 0:
                 message = f"Alarm published to {topic} with msg_id={mid}"
                 append_app_log(f"Published to {topic}: {payload}")
             else:
                 error = f"Publish failed rc={info.rc}"
+
+            # Warning: Rob is testing here.
+            temp_topic = "F4650BC0B530_ALM";
+            cfg = load_cfg()
+#            MQTT_CLIENT.publish(temp_topic, payload, qos=1)
+            annunciators = get_cfg_annunciators(cfg)
+            print("topics")
+            for topic in sorted(annunciators):
+                MQTT_CLIENT.publish(topic, payload, qos=1)
+
         except Exception as e:
             error = f"Failed to publish alarm: {e}"
 
@@ -832,4 +848,4 @@ def api_log_events():
 init_state()
 
 if __name__ == "__main__":
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=True, host="127.0.0.1", port=5003)

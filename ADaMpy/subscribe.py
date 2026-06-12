@@ -4,7 +4,7 @@ import threading
 from datetime import datetime, timezone
 import paho.mqtt.client as mqtt
 
-BROKER = "public.cloud.shiftr.io"
+BROKER = "krakepublic.cloud.shiftr.io"
 PORT = 1883
 USERNAME = "public"
 PASSWORD = "public"

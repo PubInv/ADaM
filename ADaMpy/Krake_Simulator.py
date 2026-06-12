@@ -37,7 +37,7 @@ class KrakeSimulator:
         self.ack_topic_base = cfg.get("ack_topic", "adam/acks")
         self.ack_topic = f"{self.ack_topic_base}/{self.annunciator_topic}"
 
-        self.host = cfg.get("broker_host", "public.cloud.shiftr.io")
+        self.host = cfg.get("broker_host", "krakepublic.cloud.shiftr.io")
         self.port = int(cfg.get("broker_port", 1883))
         self.username = cfg.get("username", "public")
         self.password = cfg.get("password", "public")

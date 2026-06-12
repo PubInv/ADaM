@@ -1,15 +1,16 @@
 {
   "version": "ADaM.0.0.3",
 
-  "broker_host": "public.cloud.shiftr.io",
+  "broker_host": "krakepubinv.cloud.shiftr.io",
   "broker_port": 1883,
-  "username": "public",
-  "password": "public",
+  "username": "krakepubinv",
+  "password": "DlDmkWjp4I4kgDcA",
 
   "policy": "SEVERITY_PAUSE",
   "severity_pause_seconds": 20,
 
-  "alarm_topic": "adam/in/alarms",
+   "alarm_topic": "adam/in/alarms",
+
   "ack_topic": "adam/acks",
 
   "shelve_seconds": 300,
@@ -17,7 +18,10 @@
   "annunciators":
   [
     "adam/out/LEBANON-5",
-    "adam/out/PubInv-test273"
+      "adam/out/PubInv-test273",
+      "F4650BC0B530_ALM",
+      "F4650BBB3ED0_ALM",
+      "F4650BC0B524_ALM"
   ],
 
   "alarm_db_file": "alarm_types.json",

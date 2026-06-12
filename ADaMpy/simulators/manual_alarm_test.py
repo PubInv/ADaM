@@ -39,12 +39,13 @@ def load_alarm_type_keys(cfg: dict) -> list[str]:
 def main():
     cfg = load_cfg()
 
-    broker = cfg.get("broker_host", "public.cloud.shiftr.io")
+    broker = cfg.get("broker_host", "krakepubinv.cloud.shiftr.io")
     port = int(cfg.get("broker_port", 1883))
-    user = cfg.get("username", "public")
-    pw = cfg.get("password", "public")
+    user = cfg.get("username", "krakepubinv")
+    pw = cfg.get("password", "DlDmkWjp4I4kgDcA")
 
-    topic = cfg.get("alarm_topic", "adam/in/alarms")
+#    topic = cfg.get("alarm_topic", "adam/in/alarms")
+    topic = cfg.get("alarm_topic", "F4650BC0B524_ALM")
 
     known_keys = []
     try:
@@ -79,6 +80,7 @@ def main():
             msg = encode_gpap_alarm(sev, text, msg_id=mid, max_len=80)
             client.publish(topic, msg, qos=1)
             print(f"Sent: {msg}\n")
+            print(f"topic: {topic}\n")
 
     except KeyboardInterrupt:
         print("\n[Manual] Stopping...")

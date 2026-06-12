@@ -129,7 +129,7 @@ class ADaMServer:
     def __init__(self, cfg: dict):
         self.cfg = cfg
 
-        self.broker_host = cfg.get("broker_host", "public.cloud.shiftr.io")
+        self.broker_host = cfg.get("broker_host", "krakepublic.cloud.shiftr.io")
         self.broker_port = int(cfg.get("broker_port", 1883))
         self.username = cfg.get("username", "public")
         self.password = cfg.get("password", "public")
