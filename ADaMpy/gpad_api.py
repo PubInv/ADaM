@@ -1,3 +1,20 @@
+# gpad_api.py is a module that defines helper functions and data classes for encoding and decoding GPAP.
+#
+# Copyright (C) 2026  Public Invention.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 """GPAP (General Purpose Alarm Protocol) helpers.
 
 This project previously used a GPAD-like fixed-width alarm format and a custom ACK
