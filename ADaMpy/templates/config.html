@@ -18,25 +18,6 @@
     <form method="post" class="form-grid">
       <input type="hidden" name="action" value="save_cfg">
 
-      <label>
-        Broker Host
-        <input type="text" name="broker_host" value="{{ cfg.get('broker_host', '') }}">
-      </label>
-
-      <label>
-        Broker Port
-        <input type="number" name="broker_port" value="{{ cfg.get('broker_port', 1883) }}">
-      </label>
-
-      <label>
-        Username
-        <input type="text" name="username" value="{{ cfg.get('username', '') }}">
-      </label>
-
-      <label>
-        Password
-        <input type="text" name="password" value="{{ cfg.get('password', '') }}">
-      </label>
 
       <label>
         Alarm Topic

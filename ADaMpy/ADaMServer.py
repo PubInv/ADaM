@@ -1,7 +1,7 @@
 # ADaMServer.py is our program that is responsible for receiving GPAP alarms via MQTT, applying our alarm management policy, 
 # and sending the appropriate alarm to each annunciator topic.
 #
-# Copyright (C) 2026 Public Invention.
+# Copyright (C) 2026 Saicharan Vishwanatha.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,6 +38,8 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+
+from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
 
 from ADaMpy.gpad_api import (
@@ -58,6 +60,7 @@ def utc_now_iso() -> str:
 
 
 def load_config() -> dict:
+    load_dotenv()
     adam_py_dir = os.path.abspath(os.path.dirname(__file__))
     candidates = [
         os.path.join(adam_py_dir, "config", "adam_config.json"),
@@ -74,6 +77,29 @@ def load_config() -> dict:
                 return json.load(f)
     raise FileNotFoundError("Could not find adam_config.json. Expected at ADaMpy/config/adam_config.json.")
 
+def _apply_env_overrides(cfg: dict) -> None:
+    """Overlay secrets/host info from environment variables (.env) onto the
+    JSON config. Env vars win if present; otherwise cfg keeps whatever (if
+    anything) was already in the JSON, so this stays backward compatible.
+    """
+    env_map = {
+        "broker_host": "BROKER_HOST",
+        "broker_port": "BROKER_PORT",
+        "username": "BROKER_USERNAME",
+        "password": "BROKER_PASSWORD",
+    }
+    for cfg_key, env_key in env_map.items():
+        val = os.environ.get(env_key)
+        if val is not None and val != "":
+            cfg[cfg_key] = val
+
+    required = ("username", "password")
+    missing = [k for k in required if not cfg.get(k)]
+    if missing:
+        raise RuntimeError(
+            f"Missing required broker credentials: {missing}. "
+            f"Set them in a .env file (e.g. BROKER_USERNAME, BROKER_PASSWORD)."
+        )
 
 def resolve_alarm_db_path(cfg: dict) -> str:
     """Resolve alarm_types.json location.

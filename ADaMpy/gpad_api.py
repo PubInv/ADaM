@@ -1,6 +1,6 @@
 # gpad_api.py is a module that defines helper functions and data classes for encoding and decoding GPAP.
 #
-# Copyright (C) 2026  Public Invention.
+# Copyright (C) 2026  Saicharan Vishwanatha.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

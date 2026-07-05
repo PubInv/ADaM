@@ -1,6 +1,6 @@
 # krake_simulator.py is a simple MQTT client that simulates a Krake annunciator by subscribing to an annunciator topic.
 #
-# Copyright (C) 2026  Public Invention.
+# Copyright (C) 2026  Mohamad Mzafar.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import sys
 import time
 import threading
 from datetime import datetime, timezone
+from dotenv import load_dotenv
 
 import paho.mqtt.client as mqtt
 
@@ -34,6 +35,8 @@ def utc_now_iso() -> str:
 
 
 def load_config() -> dict:
+    load_dotenv()
+
     base = os.path.abspath(os.path.dirname(__file__))
     candidates = [
         os.path.join(base, "config", "adam_config.json"),
@@ -44,6 +47,18 @@ def load_config() -> dict:
             with open(p, "r", encoding="utf-8-sig") as f:
                 return json.load(f)
     raise FileNotFoundError("Could not find adam_config.json under ADaMpy/config or ADaMpy")
+
+def _apply_env_overrides(cfg: dict) -> None:
+    env_map = {
+        "broker_host": "BROKER_HOST",
+        "broker_port": "BROKER_PORT",
+        "username": "BROKER_USERNAME",
+        "password": "BROKER_PASSWORD",
+    }
+    for cfg_key, env_key in env_map.items():
+        val = os.environ.get(env_key)
+        if val:
+            cfg[cfg_key] = val
 
 
 class KrakeSimulator:

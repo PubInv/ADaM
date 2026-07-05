@@ -1,7 +1,7 @@
 # app.py is the main Flask application for the ADaM Alarm Management system. It provides a web interface for monitoring 
 # and managing alarms, including viewing recent logs, sending manual alarms, and configuring settings.
 #
-# Copyright (C) 2026  <Your Name or Organization>
+# Copyright (C) 2026  Saicharan Vishwanatha, Mohamad Mzafar.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,12 +21,14 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from pathlib import Path
 from datetime import datetime
 import json
+import os
 import time
 import threading
 import uuid
 import re
 
 import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
 
 from ADaMpy.gpad_api import (
     encode_gpap_alarm,
@@ -40,6 +42,8 @@ def new_msg_id() -> str:
 
 
 app = Flask(__name__)
+
+load_dotenv()
 
 ADAMPY_DIR = Path(__file__).resolve().parent
 LOG_FILE = ADAMPY_DIR / "adam_server.log"
@@ -81,11 +85,27 @@ def append_app_log(message: str) -> None:
 def load_cfg() -> dict:
     with open(CONFIG_FILE, "r", encoding="utf-8-sig") as f:
         return json.load(f)
+    _apply_env_overrides(cfg)
+    return cfg
+
+
+def _apply_env_overrides(cfg: dict) -> None:
+    env_map = {
+        "broker_host": "BROKER_HOST",
+        "broker_port": "BROKER_PORT",
+        "username": "BROKER_USERNAME",
+        "password": "BROKER_PASSWORD",
+    }
+    for cfg_key, env_key in env_map.items():
+        val = os.environ.get(env_key)
+        if val:
+            cfg[cfg_key] = val
 
 
 def save_cfg(cfg: dict) -> None:
+    cfg_to_write = {k: v for k, v in cfg.items() if k not in ("username", "password")}
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2)
+        json.dump(cfg_to_write, f, indent=2)
 
 
 def resolve_alarm_db_path(cfg: dict) -> Path:
@@ -334,8 +354,14 @@ def ensure_mqtt_client() -> None:
 #    broker = cfg.get("broker_host", "public.cloud.shiftr.io")
     broker = cfg.get("broker_host", "krakepubinv.cloud.shiftr.io")
     port = int(cfg.get("broker_port", 1883))
-    username = cfg.get("username", "krakepubinv")
-    password = cfg.get("password", "DlDmkWjp4I4kgDcA")
+    username = cfg.get("username")
+    password = cfg.get("password")
+
+    if not username or not password:
+        raise RuntimeError(
+            "Missing broker credentials. Set BROKER_USERNAME and BROKER_PASSWORD "
+            "in your .env file."
+        )
 
     kwargs = {"client_id": f"ADaMWeb-{uuid.uuid4().hex[:6]}"}
     try:
@@ -720,10 +746,10 @@ def config_page():
 
         if action == "save_cfg":
             try:
-                cfg["broker_host"] = (request.form.get("broker_host") or "").strip()
-                cfg["broker_port"] = int((request.form.get("broker_port") or "1883").strip())
-                cfg["username"] = (request.form.get("username") or "").strip()
-                cfg["password"] = (request.form.get("password") or "").strip()
+                #cfg["broker_host"] = (request.form.get("broker_host") or "").strip()
+                #cfg["broker_port"] = int((request.form.get("broker_port") or "1883").strip())
+                #cfg["username"] = (request.form.get("username") or "").strip()
+                #cfg["password"] = (request.form.get("password") or "").strip()
                 cfg["alarm_topic"] = (request.form.get("alarm_topic") or "adam/in/alarms").strip()
                 cfg["ack_topic"] = (request.form.get("ack_topic") or "adam/acks").strip()
 

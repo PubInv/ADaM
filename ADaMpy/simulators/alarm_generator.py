@@ -1,7 +1,7 @@
 # alarm_generator.py this program is a simple MQTT client that generates and publishes GPAP alarm messages to a specified topic. 
 # It randomly selects alarm types and severity levels from a configured list, encodes the messages in the GPAP format then sends alarms at regular intervals.
 #
-# Copyright (C) 2026  Public Invention.
+# Copyright (C) 2026  Saicharan Vishwanatha, Mohamad Mzafar.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import time
 import random
 import uuid
 from datetime import datetime, timezone
+from dotenv import load_dotenv
 
 import paho.mqtt.client as mqtt
 
@@ -35,8 +36,24 @@ LABEL = ["", "Informational", "Problem", "Warning", "Critical", "Panic"]
 
 
 def load_cfg() -> dict:
+    load_dotenv()
+
     with open(CFG_FILE, "r", encoding="utf-8-sig") as f:
         return json.load(f)
+    _apply_env_overrides(cfg)
+    return cfg
+
+def _apply_env_overrides(cfg: dict) -> None:
+    env_map = {
+        "broker_host": "BROKER_HOST",
+        "broker_port": "BROKER_PORT",
+        "username": "BROKER_USERNAME",
+        "password": "BROKER_PASSWORD",
+    }
+    for cfg_key, env_key in env_map.items():
+        val = os.environ.get(env_key)
+        if val:
+            cfg[cfg_key] = val
 
 
 def new_msg_id() -> str:

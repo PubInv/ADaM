@@ -1,10 +1,6 @@
 {
   "version": "ADaM.0.0.3",
 
-  "broker_host": "krakepubinv.cloud.shiftr.io",
-  "broker_port": 1883,
-  "username": "krakepubinv",
-  "password": "DlDmkWjp4I4kgDcA",
 
   "policy": "SEVERITY_PAUSE",
   "severity_pause_seconds": 20,

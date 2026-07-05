@@ -1,7 +1,7 @@
 # subscribe.py file is a simple MQTT client that subscribes to a topic for receiving alarms in GPAP format, 
 # maintains an internal list of active alarms, and allows the user to acknowledge them via command-line input.
 #
-# Copyright (C) 2026  <Your Name or Organization>
+# Copyright (C) 2026  Mohamad Mzafar.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

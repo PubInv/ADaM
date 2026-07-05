@@ -1,7 +1,7 @@
 # manual_alarm_test.py is a program very similar to alarm_generator.py, but instead of generating random alarms, 
 # it allows the user to input the alarm type and details manually.
 #
-# Copyright (C) 2026  Public Invention.
+# Copyright (C) 2026  Saicharan Vishwanatha, Mohamad Mzafar.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ import json
 import uuid
 
 import paho.mqtt.client as mqtt
+from dotenv import load_dotenv
 
 from ADaMpy.gpad_api import encode_gpap_alarm
 
@@ -29,8 +30,23 @@ CFG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config
 
 
 def load_cfg() -> dict:
+    load_dotenv()
     with open(CFG_FILE, "r", encoding="utf-8-sig") as f:
         return json.load(f)
+    _apply_env_overrides(cfg)
+    return cfg
+
+def _apply_env_overrides(cfg: dict) -> None:
+    env_map = {
+        "broker_host": "BROKER_HOST",
+        "broker_port": "BROKER_PORT",
+        "username": "BROKER_USERNAME",
+        "password": "BROKER_PASSWORD",
+    }
+    for cfg_key, env_key in env_map.items():
+        val = os.environ.get(env_key)
+        if val:
+            cfg[cfg_key] = val
 
 # TODO: Move this to a shared library!
 def new_msg_id() -> str:
@@ -57,11 +73,16 @@ def load_alarm_type_keys(cfg: dict) -> list[str]:
 def main():
     cfg = load_cfg()
 
+    if not cfg.get("username") or not cfg.get("password"):
+        raise RuntimeError(
+            "Missing broker credentials. Set BROKER_USERNAME and BROKER_PASSWORD "
+            "in your .env file."
+        )
+
     broker = cfg.get("broker_host", "krakepubinv.cloud.shiftr.io")
     port = int(cfg.get("broker_port", 1883))
-    user = cfg.get("username", "krakepubinv")
-    pw = cfg.get("password", "DlDmkWjp4I4kgDcA")
-
+    user = cfg["username"]
+    pw = cfg["password"]
 #    topic = cfg.get("alarm_topic", "adam/in/alarms")
     topic = cfg.get("alarm_topic", "F4650BC0B524_ALM")
 

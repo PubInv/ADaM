@@ -1,6 +1,6 @@
 # harm_from_log.py computes a harm score from the adam_server.log file, based on the severity of alarms sent in a recent time window.
 #
-# Copyright (C) 2026  Public Invention.
+# Copyright (C) 2026  Saicharan Vishwanatha.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
