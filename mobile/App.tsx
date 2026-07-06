@@ -1,6 +1,6 @@
 // this file is part of ADaM Mobile, an open-source mobile application for receiving and managing alarms from the ADaM system.
 //
-// Copyright (C) 2026  <Your Name or Organization>
+// Copyright (C) 2026  Mohamad Mzafar
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

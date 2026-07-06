@@ -1,7 +1,7 @@
 // mqttService.ts handles MQTT connectivity for the Public Invention Alarm App, allowing it to receive alarm messages and 
 // send action acknowledgments. It uses the mqtt.js library to connect to an MQTT broker, subscribe to alarm topics, and publish action messages.
 //
-// Copyright (C) 2026  <Your Name or Organization>
+// Copyright (C) 2026  Mohamad Mzafar
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

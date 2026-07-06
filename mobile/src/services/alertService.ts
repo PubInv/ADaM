@@ -1,7 +1,7 @@
 // alertService.ts this program is part of the Public Invention Alarm App, it handles playing audio alerts and vibrations based
 // on alarm severity and type. It uses the Expo Audio API to play sounds and the React Native Vibration API for haptic feedback.
 //
-// Copyright (C) 2026  Public Invention.
+// Copyright (C) 2026  Mohamad Mzafar.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
