@@ -1,4 +1,4 @@
-# manual_alarm_test.py is a program very similar to alarm_generator.py, but instead of generating random alarms, 
+# manual_alarm_test.py is a program very similar to alarm_generator.py, but instead of generating random alarms,
 # it allows the user to input the alarm type and details manually.
 #
 # Copyright (C) 2026  Saicharan Vishwanatha, Mohamad Mzafar.
@@ -30,9 +30,14 @@ CFG_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config
 
 
 def load_cfg() -> dict:
-    load_dotenv()
+    file_found = load_dotenv()
+
+    if file_found:
+        print("Success: .env file found and loaded!")
+    else:
+        print("Error: .env file NOT found. Check your file path or name.")
     with open(CFG_FILE, "r", encoding="utf-8-sig") as f:
-        return json.load(f)
+        cfg = json.load(f)
     _apply_env_overrides(cfg)
     return cfg
 
@@ -46,7 +51,10 @@ def _apply_env_overrides(cfg: dict) -> None:
     for cfg_key, env_key in env_map.items():
         val = os.environ.get(env_key)
         if val:
+            print("val",val)
             cfg[cfg_key] = val
+        else:
+            print(f"cfg_keyn not found {env_key}\n")
 
 # TODO: Move this to a shared library!
 def new_msg_id() -> str:
