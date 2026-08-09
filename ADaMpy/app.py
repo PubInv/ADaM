@@ -43,7 +43,8 @@ def new_msg_id() -> str:
 
 app = Flask(__name__)
 
-load_dotenv()
+env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+load_dotenv(env_path, override =True)
 
 ADAMPY_DIR = Path(__file__).resolve().parent
 LOG_FILE = ADAMPY_DIR / "adam_server.log"
@@ -84,7 +85,7 @@ def append_app_log(message: str) -> None:
 
 def load_cfg() -> dict:
     with open(CONFIG_FILE, "r", encoding="utf-8-sig") as f:
-        return json.load(f)
+        cfg = json.load(f)
     _apply_env_overrides(cfg)
     return cfg
 
@@ -356,6 +357,8 @@ def ensure_mqtt_client() -> None:
     port = int(cfg.get("broker_port", 1883))
     username = cfg.get("username")
     password = cfg.get("password")
+
+    
 
     if not username or not password:
         raise RuntimeError(
