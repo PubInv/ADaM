@@ -186,6 +186,20 @@ python .\simulators\manual_alarm_test.py
 ```
 ---
 ### To run the ADAM website
+### 1) Set up a .env file on your system
+open your ADaMpy folder and in the same directory as the app.py, create a .env file.
+this file is where you will be storing info about your server, you can edit this file using an IDE or the Notepad aplication that is installed on your system. Copy this information the same way it is displayed here,
+
+- BROKER_HOST=
+- BROKER_PORT=
+- BROKER_USERNAME=
+- BROKER_PASSWORD=
+
+fill these 4 fields with your server's information then move to step 2.
+
+### 2) Open a terminal and run the web app
+- in the terminal, navigate to your "ADaM" folder and then,
+
 ```powershell
 python -m ADaMpy.app
 ```
