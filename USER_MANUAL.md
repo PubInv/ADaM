@@ -39,7 +39,21 @@ ls
 
 ---
 
-## 2) Create and activate a virtual environment
+## 2) Download Python on your machine
+Go to https://www.python.org/downloads/ and download Python version 3.10 or higher.
+Then check if it has been installed in your machine by,
+### WINDOWS:
+```powershell
+Python --v
+```
+
+### MAC:
+```
+python3 --version
+```
+
+
+## 3) Create and activate a virtual environment
 
 ### Windows (PowerShell)
 ```powershell
@@ -70,7 +84,7 @@ python --version
 
 ---
 
-## 3) Install dependencies
+## 4) Install dependencies
 ```bash
 python -m pip install --upgrade pip
 python -m pip install paho-mqtt
@@ -83,23 +97,16 @@ python -m pip show paho-mqtt
 If installed, it prints package details(name, version, location)
 ---
 
-## 4) Configure ADaM
+## 5) Configure ADaM
 
-Edit:
-```
-ADaMpy/config/adam_config.json
-```
+Inside the folder "ADaMpy", create your .env file. This file will contain information about your server. You can follow the file "Example.env"
+for reference.
 
-Minimum things you must set correctly:
+Things you must set correctly:
 - broker_host, broker_port  
 - username, password (or use env vars below)  
-- alarm_topic  
-- ack_topic  
-- annunciators (must contain at least one annunciator topic)
 
-Sanity check:  
-If `annunciators` is empty, nothing will ever display in Krake.
-
+DO NOT COMMIT YOUR .ENV FILE.
 ---
 
 ### Setting MQTT credentials locally using environment variables (do not commit)
@@ -185,12 +192,12 @@ If you want this to be usable when removing creds from the config, the code must
 
 ---
 
-## 5) Run the system (3 terminals)
+## 6) Run the system (3 terminals)
 
 Open three terminals. In each terminal:
 - cd to repo root (folder that contains ADaMpy/)
 - activate the venv
-- run the command
+- run the following commands
 
 ### Terminal 1: Start ADaMServer
 
@@ -245,3 +252,32 @@ python -m ADaMpy.simulators.manual_alarm_test
 - ADaMpy/config/adam_config.json exists and broker creds are correct
 - annunciators[] is not empty
 - You are not using placeholder broker credentials
+
+## 7) Running The ADaM Web App
+The web app is another method to experience ADaM. It provides a more visual logging system and enables you to simulate
+virtual Krakes as well as configuring a physical Krake on it. To open it:
+In your corresponding terminal, go to the directory that says "ADaM", then:
+``` Windows
+python -m ADaMpy.app
+```
+``` MAC
+python -m ADaMpy.app
+```
+Then, copy the web URL shown in the terminal onto a browser.
+
+## 8) Running the ADaM App
+1. The ADaM app is hosted using Expo Go, you can download the app on the App Store and Google Play.
+2. Go to https://nodejs.org/en/download and download NodeJS for your operating system and follow the installation instructions.
+3. Open your IDE, and change the folder to the "Mobile" folder
+4. In the terminal, type:
+   ```
+    npm install
+   ```
+5. Then, type this command
+  ```
+  npx expo start
+  ```
+6. A QR code will be shown on the screen, scan it on your mobile device for the app to boot
+
+The ADaM app acts as a subscriber, the user will be able to see any incoming topics and also be able to respond to them and send the
+response back to the server.
